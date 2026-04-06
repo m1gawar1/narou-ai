@@ -945,7 +945,12 @@ function SearchPageInner() {
                 ) : (
                   <Dices className="w-6 h-6" />
                 )}
-                {gachaCount === 10 ? "🎲 10連ガチャ" : "🎲 ランダムおすすめガチャ"}
+                {gachaCount === 10 ? "10連ガチャ" : "ランダムおすすめガチャ"}
+                {isRandomLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Dices className="w-6 h-6" />
+                )}
               </button>
               <p className="text-xs text-muted mt-2">ジャンルや文字数の条件はフォームで設定できます</p>
             </div>
