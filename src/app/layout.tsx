@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-export const themeColor = "#6366f1";
+export const themeColor = "#1a2744";
 
 export default function RootLayout({
   children,
@@ -32,7 +32,7 @@ export default function RootLayout({
     <html lang="ja" suppressHydrationWarning>
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

@@ -164,8 +164,8 @@ export default function RankingPage() {
             <div className="max-w-6xl mx-auto px-4 mt-8">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <Trophy className="text-white w-5 h-5" />
+                    <div className="w-10 h-10 flex items-center justify-center" style={{ background: "rgba(184,136,58,0.12)", border: "1px solid rgba(184,136,58,0.28)", borderRadius: "4px" }}>
+                        <Trophy style={{ color: "#b8883a", width: "20px", height: "20px" }} />
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold gradient-text">ランキング</h2>
@@ -180,8 +180,8 @@ export default function RankingPage() {
                             key={p.value}
                             onClick={() => { setPeriod(p.value); setCurrentPage(1); }}
                             className={`ranking-tab px-5 py-2 rounded-lg text-sm font-medium transition-all ${period === p.value
-                                ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-lg shadow-primary/25"
-                                : "glass text-muted hover:text-foreground"
+                                ? "bg-primary text-white"
+                                : "text-muted hover:text-foreground"
                                 }`}
                         >
                             {p.label}
@@ -225,7 +225,7 @@ export default function RankingPage() {
                     </div>
 
                     {showGenrePicker && (
-                        <div className="glass rounded-xl p-4 mt-3 border-primary/20">
+                        <div className="glass rounded-2xl p-4 mt-3">
                             {GENRE_GROUPS.map((group) => (
                                 <div key={group.label} className="mb-3 last:mb-0">
                                     <h4 className="text-xs font-semibold text-muted mb-2">{group.label}</h4>

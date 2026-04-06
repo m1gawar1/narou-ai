@@ -251,9 +251,10 @@ function SearchPageInner() {
   const [showSavePreset, setShowSavePreset] = useState(false);
 
   // ランダムおすすめ
-  const [randomNovel, setRandomNovel] = useState<NarouNovel | null>(null);
+  const [randomNovels, setRandomNovels] = useState<NarouNovel[]>([]);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
   const [showRandom, setShowRandom] = useState(false);
+  const [gachaCount, setGachaCount] = useState<1 | 10>(1);
 
   // 検索結果
   const [novels, setNovels] = useState<NarouNovel[]>([]);
@@ -386,7 +387,7 @@ function SearchPageInner() {
     setReadingTime(""); setLastUpdate(""); setExcludeStop(false);
     setShowAdvanced(false); setNovels([]); setTotalCount(0);
     setCurrentPage(1); setHasSearched(false); setError(null);
-    setRandomNovel(null); setShowRandom(false);
+    setRandomNovels([]); setShowRandom(false);
     setSimilarSourceTitle(null);
     router.replace("/", { scroll: false });
   };
@@ -426,9 +427,10 @@ function SearchPageInner() {
   };
 
   // ランダムおすすめ
-  const handleRandom = async () => {
+  const handleRandom = async (count: 1 | 10 = gachaCount) => {
     setIsRandomLoading(true);
     setShowRandom(true);
+    setRandomNovels([]);
     try {
       const countParams = new URLSearchParams();
       if (genre) countParams.set("genre", genre);
@@ -442,24 +444,26 @@ function SearchPageInner() {
       const total = Math.min(countData.allcount, 2000);
 
       if (total === 0) {
-        setRandomNovel(null);
+        setRandomNovels([]);
         return;
       }
 
-      const randomOffset = Math.floor(Math.random() * total) + 1;
+      // 10連の場合はランダムなオフセットから10件まとめて取得
+      const maxOffset = Math.max(1, total - count + 1);
+      const randomOffset = Math.floor(Math.random() * maxOffset) + 1;
       const params = new URLSearchParams();
       if (genre) params.set("genre", genre);
       if (novelType) params.set("type", novelType);
       if (minLen) params.set("minlen", minLen);
       params.set("order", "hyoka");
-      params.set("lim", "1");
+      params.set("lim", String(count));
       params.set("st", String(randomOffset));
 
       const res = await fetch(`/api/search?${params.toString()}`);
       const data = await res.json();
-      setRandomNovel(data.novels[0] || null);
+      setRandomNovels(data.novels || []);
     } catch {
-      setRandomNovel(null);
+      setRandomNovels([]);
     } finally {
       setIsRandomLoading(false);
     }
@@ -544,7 +548,7 @@ function SearchPageInner() {
     <main className="min-h-screen pb-16">
       <div className="max-w-6xl mx-auto px-4 mt-8">
         {/* Search Panel */}
-        <form onSubmit={handleSearch} className="glass rounded-2xl p-6 mb-8">
+        <form onSubmit={handleSearch} className="glass rounded-3xl p-6 mb-8">
           {/* Main search row */}
           <div className="flex flex-col md:flex-row gap-3 mb-4">
             <div className="flex-1 relative">
@@ -611,7 +615,7 @@ function SearchPageInner() {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {presets.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1 bg-white/5 rounded-lg border border-border px-3 py-1.5 group">
+                        <div key={p.id} className="flex items-center gap-1 rounded-xl border px-3 py-1.5 group" style={{ background: "rgba(0,119,237,0.06)", borderColor: "rgba(0,119,237,0.15)" }}>
                           <button
                             type="button"
                             onClick={() => applyPreset(p)}
@@ -913,41 +917,75 @@ function SearchPageInner() {
 
             {/* Random recommendation */}
             <div className="max-w-lg mx-auto">
+              {/* 回数セレクター */}
+              <div className="flex items-center justify-center gap-2 mb-3">
+                {([1, 10] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setGachaCount(n)}
+                    className="px-5 py-1.5 rounded text-sm font-semibold transition-all"
+                    style={{
+                      background: gachaCount === n ? "rgba(26,39,68,0.10)" : "transparent",
+                      color: gachaCount === n ? "#1a2744" : "#7a7369",
+                      border: `1px solid ${gachaCount === n ? "rgba(26,39,68,0.22)" : "rgba(24,21,15,0.12)"}`,
+                    }}
+                  >
+                    {n === 1 ? "1回" : "10連"}
+                  </button>
+                ))}
+              </div>
               <button
-                onClick={handleRandom}
+                onClick={() => handleRandom(gachaCount)}
                 disabled={isRandomLoading}
-                className="gacha-btn w-full py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
+                className="gacha-btn w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3"
               >
                 {isRandomLoading ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
                   <Dices className="w-6 h-6" />
                 )}
-                🎲 ランダムおすすめガチャ
+                {gachaCount === 10 ? "🎲 10連ガチャ" : "🎲 ランダムおすすめガチャ"}
               </button>
               <p className="text-xs text-muted mt-2">ジャンルや文字数の条件はフォームで設定できます</p>
             </div>
 
-            {/* Random result */}
+            {/* Random results */}
             <AnimatePresence>
-              {showRandom && randomNovel && (
+              {showRandom && randomNovels.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.4, type: "spring" }}
-                  className="mt-8 max-w-2xl mx-auto text-left"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-8 max-w-4xl mx-auto text-left"
                 >
-                  <div className="flex items-center gap-2 mb-3 justify-center">
-                    <Sparkles className="w-5 h-5 text-yellow-400" />
-                    <span className="text-sm font-semibold text-yellow-400">あなたへのおすすめ</span>
-                    <Sparkles className="w-5 h-5 text-yellow-400" />
+                  <div className="flex items-center gap-2 mb-4 justify-center">
+                    <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
+                    <span className="text-sm font-semibold" style={{ color: "#b8883a" }}>
+                      {randomNovels.length === 1 ? "あなたへのおすすめ" : `${randomNovels.length}作品をピックアップ`}
+                    </span>
+                    <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
                   </div>
-                  <NovelCard novel={randomNovel} onSimilarSearch={handleSimilarSearch} />
+                  <div className={randomNovels.length === 1
+                    ? "max-w-2xl mx-auto"
+                    : "grid grid-cols-1 md:grid-cols-2 gap-4"
+                  }>
+                    {randomNovels.map((novel, i) => (
+                      <motion.div
+                        key={novel.ncode}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05, duration: 0.25 }}
+                      >
+                        <NovelCard novel={novel} onSimilarSearch={handleSimilarSearch} onAuthorSearch={handleAuthorSearch} />
+                      </motion.div>
+                    ))}
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
-            {showRandom && !isRandomLoading && !randomNovel && (
+            {showRandom && !isRandomLoading && randomNovels.length === 0 && (
               <p className="text-muted mt-4">条件に合う作品が見つかりませんでした</p>
             )}
           </div>

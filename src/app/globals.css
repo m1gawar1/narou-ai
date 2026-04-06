@@ -1,368 +1,420 @@
 @import "tailwindcss";
 
+/* ============================================================
+   なろう小説ファインダー — エディトリアルデザインシステム
+   インク × 上質紙 × 日本の文芸出版社
+   ============================================================ */
+
 @theme {
-  --color-background: #0a0a0f;
-  --color-foreground: #e4e4e7;
-  --color-surface: #141420;
-  --color-surface-alt: #1a1a2e;
-  --color-border: rgba(99, 102, 241, 0.12);
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-accent: #a78bfa;
-  --color-muted: #71717a;
-  --color-warning: #fbbf24;
+  --color-background:   #f5f1ea;
+  --color-foreground:   #18150f;
+  --color-surface:      rgba(252, 249, 243, 0.90);
+  --color-surface-alt:  rgba(245, 241, 234, 0.70);
+  --color-border:       rgba(24, 21, 15, 0.10);
+  --color-primary:      #1a2744;   /* 深紺インク */
+  --color-primary-light:#2c4070;
+  --color-accent:       #b8883a;   /* 金箔 */
+  --color-muted:        #7a7369;
+  --color-warning:      #b8883a;
+}
+
+/* ===== 紙の質感 ===== */
+html {
+  background: #ede8df;
 }
 
 body {
-  background: var(--color-background);
   color: var(--color-foreground);
-  font-family: 'Noto Sans JP', 'Inter', sans-serif;
+  font-family: 'Noto Sans JP', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  position: relative;
 }
 
-/* ====== の代わりにセクション分け ====== */
+/* 紙の地色：上質な日本和紙 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 140% 80% at 20% 0%,   rgba(220, 210, 185, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 100% 60% at 90% 100%,  rgba(200, 185, 155, 0.30) 0%, transparent 50%),
+    #f0ebe0;
+}
 
-/* ===== Glass & Surface ===== */
+/* 紙の繊維グレイン */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23grain)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  pointer-events: none;
+}
+
+/* ===== Glass / カードパネル ===== */
 .glass {
-  background: rgba(20, 20, 32, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--color-border);
+  background: rgba(252, 249, 243, 0.88);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 2px 20px rgba(24, 21, 15, 0.07),
+    0 1px 4px  rgba(24, 21, 15, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 /* ===== Typography ===== */
+.display-font {
+  font-family: 'Noto Sans JP', sans-serif;
+}
+
 .gradient-text {
-  background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-family: 'Noto Sans JP', sans-serif;
+  color: var(--color-primary);
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .num-badge {
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
-/* ===== Navigation ===== */
+/* ===== ナビゲーション ===== */
 .nav-link {
   position: relative;
+  transition: color 0.15s ease;
 }
 
 .nav-link::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 2px;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
   background: var(--color-primary);
-  border-radius: 1px;
-  transition: width 0.2s;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
 }
 
-.nav-link:hover::after,
-.nav-link.active::after {
-  width: 60%;
+.nav-link:hover::after {
+  transform: scaleX(1);
 }
 
-/* ===== Tag Chip ===== */
+/* ===== タグチップ ===== */
 .tag-chip {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
-  border-radius: 9999px;
-  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 3px;
+  font-size: 10.5px;
   font-weight: 500;
-  background: rgba(99, 102, 241, 0.1);
-  color: #a78bfa;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(26, 39, 68, 0.06);
+  color: #1a2744;
+  border: 1px solid rgba(26, 39, 68, 0.14);
   white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
-/* ===== Form Inputs ===== */
+/* ===== フォーム入力 ===== */
 .form-input {
   width: 100%;
-  background: rgba(20, 20, 32, 0.5);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 10px 16px;
+  border: none;
+  border-bottom: 1.5px solid rgba(24, 21, 15, 0.18);
+  border-radius: 0;
+  padding: 10px 4px;
   color: var(--color-foreground);
   font-size: 14px;
+  font-family: 'Noto Sans JP', sans-serif;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  background: transparent;
 }
 
 .form-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-bottom-color: var(--color-primary);
+  background: rgba(26, 39, 68, 0.02);
 }
 
 .form-input::placeholder {
-  color: var(--color-muted);
+  color: #b0a898;
+  font-weight: 400;
 }
 
-/* ===== Buttons ===== */
+select.form-input {
+  appearance: none;
+  border: 1px solid rgba(24, 21, 15, 0.14);
+  border-radius: 6px;
+  padding: 9px 34px 9px 12px;
+  background: rgba(252, 249, 243, 0.85);
+  backdrop-filter: blur(8px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237a7369' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.15s;
+}
+
+select.form-input:focus {
+  border-color: var(--color-primary);
+  background-color: rgba(252, 249, 243, 0.98);
+}
+
+/* ===== ボタン ===== */
 .search-btn {
   padding: 10px 28px;
-  background: linear-gradient(135deg, #6366f1, #7c3aed);
-  color: white;
+  background: var(--color-primary);
+  color: rgba(245, 241, 234, 0.96);
   border: none;
-  border-radius: 12px;
+  border-radius: 4px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13.5px;
+  font-family: 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  transition: background 0.15s ease, transform 0.12s ease;
 }
 
 .search-btn:hover {
+  background: var(--color-primary-light);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+
+.search-btn:active {
+  transform: translateY(0);
 }
 
 .search-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.45;
   cursor: not-allowed;
   transform: none;
 }
 
 .reset-btn {
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 18px;
+  background: transparent;
   color: var(--color-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  font-size: 14px;
+  border: 1px solid rgba(24, 21, 15, 0.16);
+  border-radius: 4px;
+  font-size: 13.5px;
+  font-family: 'Noto Sans JP', sans-serif;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .reset-btn:hover {
   color: var(--color-foreground);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(24, 21, 15, 0.30);
+  background: rgba(24, 21, 15, 0.03);
 }
 
-/* ===== Gacha Button ===== */
+/* ===== ガチャボタン ===== */
 .gacha-btn {
-  background: linear-gradient(135deg, #f59e0b, #ef4444, #ec4899, #8b5cf6);
-  background-size: 300% 300%;
-  animation: gacha-gradient 4s ease infinite;
+  background: var(--color-accent);
   color: white;
   border: none;
   cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.25);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+  letter-spacing: 0.04em;
 }
 
 .gacha-btn:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 8px 30px rgba(239, 68, 68, 0.35);
+  background: #9a7230;
+  transform: translateY(-1px);
 }
 
 .gacha-btn:disabled {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
 }
 
-@keyframes gacha-gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/* ===== Ranking Tabs ===== */
+/* ===== ランキングタブ ===== */
 .ranking-tab {
   cursor: pointer;
-  border: 1px solid var(--color-border);
-  transition: all 0.2s;
+  border: 1px solid rgba(24, 21, 15, 0.12);
+  background: rgba(252, 249, 243, 0.70);
+  color: var(--color-muted);
+  transition: all 0.15s ease;
+  font-family: 'Noto Sans JP', sans-serif;
+  letter-spacing: 0.04em;
 }
 
 .ranking-tab:hover {
-  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(252, 249, 243, 0.95);
+  color: var(--color-foreground);
+  border-color: rgba(24, 21, 15, 0.22);
 }
 
-/* ===== Rank Badges ===== */
+/* ===== ランクバッジ ===== */
 .rank-badge {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 4px;
   font-weight: 700;
-  font-size: 16px;
   flex-shrink: 0;
 }
 
 .rank-1 {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.1));
-  border: 1px solid rgba(255, 215, 0, 0.3);
+  background: rgba(184, 136, 58, 0.12);
+  border: 1px solid rgba(184, 136, 58, 0.30);
+  color: #8a6020;
   font-size: 22px;
 }
 
 .rank-2 {
-  background: linear-gradient(135deg, rgba(192, 192, 192, 0.2), rgba(169, 169, 169, 0.1));
-  border: 1px solid rgba(192, 192, 192, 0.3);
+  background: rgba(130, 128, 124, 0.10);
+  border: 1px solid rgba(130, 128, 124, 0.25);
+  color: #6a6860;
   font-size: 22px;
 }
 
 .rank-3 {
-  background: linear-gradient(135deg, rgba(205, 127, 50, 0.2), rgba(184, 115, 51, 0.1));
-  border: 1px solid rgba(205, 127, 50, 0.3);
+  background: rgba(160, 100, 50, 0.10);
+  border: 1px solid rgba(160, 100, 50, 0.25);
+  color: #7a5030;
   font-size: 22px;
 }
 
 .rank-other {
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  background: rgba(24, 21, 15, 0.04);
+  border: 1px solid rgba(24, 21, 15, 0.10);
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
-/* ===== Novel Card ===== */
+/* ===== ノベルカード ===== */
 .novel-card {
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.20s ease, box-shadow 0.20s ease;
+  border-top: 2px solid transparent;
 }
 
 .novel-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-top-color: var(--color-accent);
+  box-shadow:
+    0 10px 32px rgba(24, 21, 15, 0.10),
+    0  3px  8px rgba(24, 21, 15, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
-/* ===== Pagination ===== */
+/* ===== ページネーション ===== */
 .page-btn {
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: rgba(20, 20, 32, 0.5);
-  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: rgba(252, 249, 243, 0.75);
+  border: 1px solid rgba(24, 21, 15, 0.12);
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .page-btn:hover:not(:disabled) {
+  background: rgba(252, 249, 243, 0.98);
   border-color: var(--color-primary);
-  color: var(--color-foreground);
+  color: var(--color-primary);
 }
 
 .page-btn.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: white;
-  font-weight: 600;
+  color: rgba(245, 241, 234, 0.95);
+  font-weight: 700;
 }
 
 .page-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   cursor: not-allowed;
 }
 
-/* ===== Skeleton Loading ===== */
+/* ===== スケルトン ===== */
 .skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background: linear-gradient(
+    90deg,
+    rgba(24, 21, 15, 0.04) 25%,
+    rgba(24, 21, 15, 0.08) 50%,
+    rgba(24, 21, 15, 0.04) 75%
+  );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-/* ===== Custom Select ===== */
-select.form-input {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
-}
-
-/* ===== Scrollbar ===== */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.2);
+  animation: shimmer 1.8s ease-in-out infinite;
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.4);
+@keyframes shimmer {
+  0%   { background-position:  200% 0; }
+  100% { background-position: -200% 0; }
 }
 
-/* ===== Mobile Optimizations ===== */
+/* ===== ユーティリティ上書き ===== */
+.glass .bg-white\/5,
+.glass .hover\:bg-white\/5:hover {
+  background-color: rgba(24, 21, 15, 0.04) !important;
+}
 
-/* ボトムナビのセーフエリア対応（iPhoneのノッチ等） */
+.glass .bg-white\/3 {
+  background-color: rgba(24, 21, 15, 0.025) !important;
+}
+
+.glass .bg-white\/10,
+.glass .hover\:bg-white\/10:hover {
+  background-color: rgba(24, 21, 15, 0.06) !important;
+}
+
+/* ===== スクロールバー ===== */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(24, 21, 15, 0.14);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(24, 21, 15, 0.25);
+}
+
+/* ===== モバイル ===== */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
-/* スマホ時はボトムナビ分の余白 */
 @media (max-width: 767px) {
   main {
     padding-bottom: 5rem !important;
   }
 
-  /* 検索ボタンを全幅に */
   .search-btn {
     width: 100%;
     justify-content: center;
   }
 
-  /* フォーム入力を少し大きめに（タップしやすく） */
   .form-input {
-    padding: 12px 14px;
+    padding: 12px 4px;
     font-size: 16px;
-    /* iOS zoom防止 */
   }
 
   select.form-input {
     font-size: 16px;
+    padding: 11px 34px 11px 12px;
   }
 
-  /* コンテンツの横パディングを少し狭く */
   .max-w-6xl,
   .max-w-5xl,
   .max-w-4xl {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  /* ページネーションのタップ領域拡大 */
-  .pagination-btn {
-    min-width: 40px;
-    min-height: 40px;
-  }
-
-  /* 比較パネルをコンパクトに */
-  .compare-panel table {
-    font-size: 11px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }

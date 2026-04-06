@@ -37,39 +37,39 @@ function formatReadingTime(charCount: number): string {
 
 function getReadingTimeColor(charCount: number): { bg: string; text: string; border: string } {
     const minutes = Math.round(charCount / 500);
-    if (minutes <= 30) return { bg: "rgba(52, 211, 153, 0.1)", text: "#34d399", border: "rgba(52, 211, 153, 0.2)" };
-    if (minutes <= 180) return { bg: "rgba(96, 165, 250, 0.1)", text: "#60a5fa", border: "rgba(96, 165, 250, 0.2)" };
-    if (minutes <= 600) return { bg: "rgba(167, 139, 250, 0.1)", text: "#a78bfa", border: "rgba(167, 139, 250, 0.2)" };
-    return { bg: "rgba(251, 191, 36, 0.1)", text: "#fbbf24", border: "rgba(251, 191, 36, 0.2)" };
+    if (minutes <= 30)  return { bg: "rgba(26,39,68,0.06)",   text: "#1a2744", border: "rgba(26,39,68,0.14)" };
+    if (minutes <= 180) return { bg: "rgba(26,39,68,0.06)",   text: "#2c4070", border: "rgba(26,39,68,0.14)" };
+    if (minutes <= 600) return { bg: "rgba(184,136,58,0.08)", text: "#7a5c1a", border: "rgba(184,136,58,0.20)" };
+    return                     { bg: "rgba(184,136,58,0.10)", text: "#6a4c10", border: "rgba(184,136,58,0.22)" };
 }
 
 function getNovelStatus(novel: NarouNovel | { novel_type: number; end: number; isstop?: number }): {
     label: string; color: string; bgColor: string; borderColor: string;
 } {
     if (novel.novel_type === 2) {
-        return { label: "短編", color: "#60a5fa", bgColor: "rgba(96, 165, 250, 0.1)", borderColor: "rgba(96, 165, 250, 0.2)" };
+        return { label: "短編",  color: "#1a2744", bgColor: "rgba(26,39,68,0.06)",  borderColor: "rgba(26,39,68,0.14)" };
     }
     if (novel.end === 1) {
-        return { label: "連載中", color: "#34d399", bgColor: "rgba(52, 211, 153, 0.1)", borderColor: "rgba(52, 211, 153, 0.2)" };
+        return { label: "連載中", color: "#1a5c30", bgColor: "rgba(26,92,48,0.06)",  borderColor: "rgba(26,92,48,0.16)" };
     }
-    return { label: "完結済", color: "#fbbf24", bgColor: "rgba(251, 191, 36, 0.1)", borderColor: "rgba(251, 191, 36, 0.2)" };
+    return { label: "完結済", color: "#7a5c1a", bgColor: "rgba(184,136,58,0.08)", borderColor: "rgba(184,136,58,0.20)" };
 }
 
 // 更新頻度計算
 function getUpdateFrequency(novel: NarouNovel): { text: string; color: string } | null {
-    if (novel.novel_type === 2 || novel.general_all_no <= 1) return null; // 短編 or 1話
+    if (novel.novel_type === 2 || novel.general_all_no <= 1) return null;
     if (!novel.general_firstup || !novel.general_lastup) return null;
     const firstup = new Date(novel.general_firstup).getTime();
     const lastup = new Date(novel.general_lastup).getTime();
     const totalDays = (lastup - firstup) / (1000 * 60 * 60 * 24);
     if (totalDays <= 0) return null;
     const avgDays = totalDays / (novel.general_all_no - 1);
-    if (avgDays < 1.5) return { text: "ほぼ毎日", color: "#34d399" };
-    if (avgDays < 4) return { text: `約${Math.round(avgDays)}日に1話`, color: "#60a5fa" };
-    if (avgDays < 8) return { text: "週約1回", color: "#a78bfa" };
-    if (avgDays < 15) return { text: "月約2回", color: "#fbbf24" };
-    if (avgDays < 35) return { text: "月約1回", color: "#fb923c" };
-    return { text: `約${Math.round(avgDays)}日に1話`, color: "#f87171" };
+    if (avgDays < 1.5) return { text: "ほぼ毎日",              color: "#1a5c30" };
+    if (avgDays < 4)   return { text: `約${Math.round(avgDays)}日に1話`, color: "#1a2744" };
+    if (avgDays < 8)   return { text: "週約1回",               color: "#2c4070" };
+    if (avgDays < 15)  return { text: "月約2回",               color: "#7a5c1a" };
+    if (avgDays < 35)  return { text: "月約1回",               color: "#8a4020" };
+    return                    { text: `約${Math.round(avgDays)}日に1話`, color: "#8a2020" };
 }
 
 // 読書ペース計算（1日30分で何日か）
@@ -110,7 +110,7 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
                         return `${p.x},${p.y}`;
                     }).join(" ")}
                     fill="none"
-                    stroke="rgba(99, 102, 241, 0.15)"
+                    stroke="rgba(26, 39, 68, 0.12)"
                     strokeWidth="1"
                 />
             ))}
@@ -124,7 +124,7 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
                         y1={center}
                         x2={p.x}
                         y2={p.y}
-                        stroke="rgba(99, 102, 241, 0.1)"
+                        stroke="rgba(26, 39, 68, 0.08)"
                         strokeWidth="1"
                     />
                 );
@@ -135,15 +135,15 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
                     const p = getPoint(i, v);
                     return `${p.x},${p.y}`;
                 }).join(" ")}
-                fill="rgba(99, 102, 241, 0.2)"
-                stroke="#6366f1"
+                fill="rgba(26, 39, 68, 0.10)"
+                stroke="#1a2744"
                 strokeWidth="2"
             />
             {/* Data points */}
             {values.map((v, i) => {
                 const p = getPoint(i, v);
                 return (
-                    <circle key={i} cx={p.x} cy={p.y} r="3" fill="#818cf8" />
+                    <circle key={i} cx={p.x} cy={p.y} r="3" fill="#b8883a" />
                 );
             })}
             {/* Labels */}
@@ -238,7 +238,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
     ) : null;
 
     return (
-        <div className="novel-card glass rounded-xl p-4 sm:p-5 md:p-6">
+        <div className="novel-card glass rounded-2xl p-4 sm:p-5 md:p-6">
             {/* Title & Meta */}
             <div className="flex items-start gap-3 mb-3">
                 {rankBadge}
@@ -249,6 +249,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-base sm:text-lg font-bold hover:text-primary-light transition-colors inline-flex items-start gap-2 group"
+                            style={{ fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.01em" }}
                         >
                             <span className="line-clamp-2 sm:line-clamp-1">{novel.title}</span>
                             <ExternalLink className="w-4 h-4 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
@@ -256,14 +257,15 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                         <div className="flex items-center gap-1 flex-shrink-0">
                             <button
                                 onClick={() => setShowScore(!showScore)}
-                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                className="p-1.5 rounded-lg transition-colors"
+                                style={{ background: showScore ? "rgba(0,119,237,0.10)" : "transparent" }}
                                 title="スコアカード"
                             >
-                                <Radar className="w-4 h-4 text-muted hover:text-primary" />
+                                <Radar className="w-4 h-4" style={{ color: showScore ? "#0077ed" : "#8e8e93" }} />
                             </button>
                             <button
                                 onClick={toggleFavorite}
-                                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+                                className="p-1.5 rounded-lg transition-colors"
                                 title={isFav ? "お気に入り解除" : "お気に入り追加"}
                             >
                                 {isFav ? (
@@ -315,7 +317,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                         {novel.length >= 30000 && (
                             <span
                                 className="tag-chip flex items-center gap-1"
-                                style={{ background: "rgba(56, 189, 248, 0.1)", color: "#38bdf8", borderColor: "rgba(56, 189, 248, 0.2)" }}
+                                style={{ background: "rgba(26,39,68,0.05)", color: "#1a2744", borderColor: "rgba(26,39,68,0.13)" }}
                                 title="1日30分読書での見積り"
                             >
                                 <CalendarDays className="w-3 h-3" />
@@ -323,7 +325,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                             </span>
                         )}
                         {novel.isstop === 1 && (
-                            <span className="tag-chip" style={{ background: "rgba(239, 68, 68, 0.1)", color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.2)" }}>
+                            <span className="tag-chip" style={{ background: "rgba(138,32,32,0.06)", color: "#8a2020", borderColor: "rgba(138,32,32,0.16)" }}>
                                 長期停止中
                             </span>
                         )}
@@ -346,7 +348,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden mb-4"
                     >
-                        <div className="bg-white/3 rounded-xl p-4 border border-border">
+                        <div className="p-4" style={{ background: "rgba(26,39,68,0.03)", border: "1px solid rgba(26,39,68,0.08)", borderRadius: "4px" }}>
                             <h4 className="text-xs font-semibold text-muted mb-3 text-center">📈 作品スコアカード</h4>
                             <RadarChart values={scoreValues} labels={scoreLabels} />
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-3 text-center">
