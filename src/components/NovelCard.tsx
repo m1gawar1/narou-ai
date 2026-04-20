@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import {
     ExternalLink, BookOpen, Star, Heart, HeartOff,
-    BookMarked, Clock, Tag, Radar, ChevronDown, ChevronUp, Search,
-    Timer, CheckSquare, Square, RefreshCw, CalendarDays, User
+    BookMarked, Clock, Tag, Radar, Search,
+    Timer, RefreshCw, CalendarDays, User, ChevronDown, ChevronUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GENRE_MAP, type NarouNovel } from "@/lib/narou";
@@ -19,7 +19,6 @@ function formatNumber(num: number): string {
 
 function formatDate(dateStr: string): string {
     if (!dateStr) return "";
-    // APIから "2023-01-01 12:34:56" のような形式で来るので、日付部分だけ取り出して / に置換
     const datePart = dateStr.split(" ")[0];
     if (!datePart) return "";
     const [year, month, day] = datePart.split("-");
@@ -27,7 +26,7 @@ function formatDate(dateStr: string): string {
 }
 
 function formatReadingTime(charCount: number): string {
-    const minutes = Math.round(charCount / 500); // 日本語平均読速 500字/分
+    const minutes = Math.round(charCount / 500);
     if (minutes < 60) return `約${minutes}分`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -55,7 +54,6 @@ function getNovelStatus(novel: NarouNovel | { novel_type: number; end: number; i
     return { label: "完結済", color: "#7a5c1a", bgColor: "rgba(184,136,58,0.08)", borderColor: "rgba(184,136,58,0.20)" };
 }
 
-// 更新頻度計算
 function getUpdateFrequency(novel: NarouNovel): { text: string; color: string } | null {
     if (novel.novel_type === 2 || novel.general_all_no <= 1) return null;
     if (!novel.general_firstup || !novel.general_lastup) return null;
@@ -72,15 +70,13 @@ function getUpdateFrequency(novel: NarouNovel): { text: string; color: string } 
     return                    { text: `約${Math.round(avgDays)}日に1話`, color: "#8a2020" };
 }
 
-// 読書ペース計算（1日30分で何日か）
 function getReadingPace(charCount: number): string {
-    const dailyChars = 500 * 30; // 500字/分 × 30分 = 15000字/日
+    const dailyChars = 500 * 30;
     const days = Math.ceil(charCount / dailyChars);
     if (days <= 1) return "1日で読了";
     return `${days}日で読了`;
 }
 
-// SVGレーダーチャート
 function RadarChart({ values, labels }: { values: number[]; labels: string[] }) {
     const size = 260;
     const center = size / 2;
@@ -91,17 +87,13 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
     const getPoint = (index: number, value: number) => {
         const angle = angleStep * index - Math.PI / 2;
         const r = maxRadius * value;
-        return {
-            x: center + r * Math.cos(angle),
-            y: center + r * Math.sin(angle),
-        };
+        return { x: center + r * Math.cos(angle), y: center + r * Math.sin(angle) };
     };
 
     const gridLevels = [0.25, 0.5, 0.75, 1];
 
     return (
         <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[240px] mx-auto">
-            {/* Grid */}
             {gridLevels.map((level) => (
                 <polygon
                     key={level}
@@ -114,52 +106,24 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
                     strokeWidth="1"
                 />
             ))}
-            {/* Axis lines */}
             {Array.from({ length: sides }, (_, i) => {
                 const p = getPoint(i, 1);
-                return (
-                    <line
-                        key={i}
-                        x1={center}
-                        y1={center}
-                        x2={p.x}
-                        y2={p.y}
-                        stroke="rgba(26, 39, 68, 0.08)"
-                        strokeWidth="1"
-                    />
-                );
+                return <line key={i} x1={center} y1={center} x2={p.x} y2={p.y} stroke="rgba(26, 39, 68, 0.08)" strokeWidth="1" />;
             })}
-            {/* Data polygon */}
             <polygon
-                points={values.map((v, i) => {
-                    const p = getPoint(i, v);
-                    return `${p.x},${p.y}`;
-                }).join(" ")}
+                points={values.map((v, i) => { const p = getPoint(i, v); return `${p.x},${p.y}`; }).join(" ")}
                 fill="rgba(26, 39, 68, 0.10)"
                 stroke="#1a2744"
                 strokeWidth="2"
             />
-            {/* Data points */}
             {values.map((v, i) => {
                 const p = getPoint(i, v);
-                return (
-                    <circle key={i} cx={p.x} cy={p.y} r="3" fill="#b8883a" />
-                );
+                return <circle key={i} cx={p.x} cy={p.y} r="3" fill="#b8883a" />;
             })}
-            {/* Labels */}
             {labels.map((label, i) => {
                 const p = getPoint(i, 1.5);
                 return (
-                    <text
-                        key={i}
-                        x={p.x}
-                        y={p.y}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fill="#9ca3af"
-                        fontSize="13"
-                        fontWeight="500"
-                    >
+                    <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fill="#9ca3af" fontSize="13" fontWeight="500">
                         {label}
                     </text>
                 );
@@ -168,7 +132,6 @@ function RadarChart({ values, labels }: { values: number[]; labels: string[] }) 
     );
 }
 
-// ノーマライズ関数（対数スケール）
 function normalizeLog(value: number, max: number): number {
     if (value <= 0) return 0;
     return Math.min(Math.log10(value + 1) / Math.log10(max + 1), 1);
@@ -179,12 +142,14 @@ interface NovelCardProps {
     rank?: number;
     onSimilarSearch?: (keywords: string, genre: number, title: string) => void;
     onAuthorSearch?: (authorName: string) => void;
+    onKeywordClick?: (keyword: string) => void;
     showRank?: boolean;
 }
 
-export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch, showRank }: NovelCardProps) {
+export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch, onKeywordClick, showRank }: NovelCardProps) {
     const [isFav, setIsFav] = useState(false);
     const [showScore, setShowScore] = useState(false);
+    const [expanded, setExpanded] = useState(false);
     const novelStatus = getNovelStatus(novel);
     const readingTimeColor = getReadingTimeColor(novel.length);
     const updateFreq = getUpdateFrequency(novel);
@@ -195,11 +160,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
     }, [novel.ncode]);
 
     const toggleFavorite = () => {
-        if (isFav) {
-            removeFavorite(novel.ncode);
-        } else {
-            addFavorite(novel);
-        }
+        if (isFav) { removeFavorite(novel.ncode); } else { addFavorite(novel); }
         setIsFav(!isFav);
     };
 
@@ -217,7 +178,6 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
         onSimilarSearch(selectedTags.join(" "), novel.genre, novel.title);
     };
 
-    // スコアカードの値を計算
     const scoreValues = [
         normalizeLog(novel.global_point, 1000000),
         normalizeLog(novel.fav_novel_cnt, 500000),
@@ -238,7 +198,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
     ) : null;
 
     return (
-        <div className="novel-card glass rounded-2xl p-4 sm:p-5 md:p-6">
+        <div className="novel-card glass rounded-2xl p-4 sm:p-5">
             {/* Title & Meta */}
             <div className="flex items-start gap-3 mb-3">
                 {rankBadge}
@@ -276,6 +236,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                             </button>
                         </div>
                     </div>
+                    {/* Compact meta: author + genre + status only */}
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted">
                         <button
                             onClick={() => onAuthorSearch?.(novel.writer)}
@@ -293,52 +254,16 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                         >
                             {novelStatus.label}
                         </span>
-                        {/* 読了時間バッジ */}
-                        <span
-                            className="tag-chip flex items-center gap-1"
-                            style={{ background: readingTimeColor.bg, color: readingTimeColor.text, borderColor: readingTimeColor.border }}
-                            title={`${novel.length.toLocaleString()}字 ÷ 500字/分 | 1日30分で${readingPace}`}
-                        >
-                            <Timer className="w-3 h-3" />
-                            {formatReadingTime(novel.length)}
-                        </span>
-                        {/* 更新頻度バッジ */}
-                        {updateFreq && novel.end === 1 && (
-                            <span
-                                className="tag-chip flex items-center gap-1"
-                                style={{ background: `${updateFreq.color}15`, color: updateFreq.color, borderColor: `${updateFreq.color}30` }}
-                                title={`平均更新間隔: ${updateFreq.text}`}
-                            >
-                                <RefreshCw className="w-3 h-3" />
-                                {updateFreq.text}
-                            </span>
-                        )}
-                        {/* 読書ペース */}
-                        {novel.length >= 30000 && (
-                            <span
-                                className="tag-chip flex items-center gap-1"
-                                style={{ background: "rgba(26,39,68,0.05)", color: "#1a2744", borderColor: "rgba(26,39,68,0.13)" }}
-                                title="1日30分読書での見積り"
-                            >
-                                <CalendarDays className="w-3 h-3" />
-                                {readingPace}
-                            </span>
-                        )}
-                        {novel.isstop === 1 && (
-                            <span className="tag-chip" style={{ background: "rgba(138,32,32,0.06)", color: "#8a2020", borderColor: "rgba(138,32,32,0.16)" }}>
-                                長期停止中
-                            </span>
-                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Story excerpt */}
-            <p className="text-sm text-foreground/70 leading-relaxed line-clamp-3 mb-4">
+            {/* Story excerpt — line-clamp-2 */}
+            <p className="text-sm text-foreground/70 leading-relaxed line-clamp-2 mb-4">
                 {novel.story?.replace(/<[^>]*>/g, "")}
             </p>
 
-            {/* Score Card (expandable) */}
+            {/* Score Card */}
             <AnimatePresence>
                 {showScore && (
                     <motion.div
@@ -371,7 +296,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
             </AnimatePresence>
 
             {/* Stats */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs mb-3">
                 <div className="flex items-center gap-1.5 num-badge" title="総合ポイント">
                     <Star className="w-3.5 h-3.5 text-warning" />
                     <span className="text-foreground font-medium">{formatNumber(novel.global_point)}</span>
@@ -395,30 +320,126 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                     <Clock className="w-3.5 h-3.5 text-muted" />
                     <span className="text-muted">{formatDate(novel.general_lastup)}</span>
                 </div>
-
-                {/* Similar search & keyword tags */}
-                <div className="w-full sm:w-auto flex flex-wrap items-center gap-1 sm:ml-auto">
-                    {onSimilarSearch && novel.keyword && (
-                        <button
-                            onClick={handleSimilarSearch}
-                            className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary-light border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer"
-                            title="類似作品を検索"
-                        >
-                            <Search className="w-3 h-3" />
-                            類似検索
-                        </button>
-                    )}
-                    {novel.keyword && (
-                        <div className="hidden md:flex flex-wrap gap-1">
-                            {novel.keyword.split(/\s+/).slice(0, 4).map((kw, i) => (
-                                <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-muted">
-                                    {kw}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
             </div>
+
+            {/* Expand toggle */}
+            <button
+                onClick={() => setExpanded((v) => !v)}
+                className="flex items-center gap-1 text-xs transition-colors"
+                style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.02em", padding: "2px 0" }}
+            >
+                {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                {expanded ? "詳細を閉じる" : "詳細を見る"}
+            </button>
+
+            {/* Expanded detail section */}
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(24,21,15,0.07)" }}>
+                            {/* Extra badges */}
+                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                <span
+                                    className="tag-chip flex items-center gap-1"
+                                    style={{ background: readingTimeColor.bg, color: readingTimeColor.text, borderColor: readingTimeColor.border }}
+                                    title={`${novel.length.toLocaleString()}字 ÷ 500字/分`}
+                                >
+                                    <Timer className="w-3 h-3" />
+                                    {formatReadingTime(novel.length)}
+                                </span>
+                                {novel.length >= 30000 && (
+                                    <span
+                                        className="tag-chip flex items-center gap-1"
+                                        style={{ background: "rgba(26,39,68,0.05)", color: "#1a2744", borderColor: "rgba(26,39,68,0.13)" }}
+                                        title="1日30分読書での見積り"
+                                    >
+                                        <CalendarDays className="w-3 h-3" />
+                                        {readingPace}
+                                    </span>
+                                )}
+                                {updateFreq && novel.end === 1 && (
+                                    <span
+                                        className="tag-chip flex items-center gap-1"
+                                        style={{ background: `${updateFreq.color}15`, color: updateFreq.color, borderColor: `${updateFreq.color}30` }}
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                        {updateFreq.text}
+                                    </span>
+                                )}
+                                {novel.isstop === 1 && (
+                                    <span className="tag-chip" style={{ background: "rgba(138,32,32,0.06)", color: "#8a2020", borderColor: "rgba(138,32,32,0.16)" }}>
+                                        ⚠ 長期停止中
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Keyword tags — clickable, up to 8 */}
+                            {novel.keyword && (
+                                <div className="flex flex-wrap gap-1 mb-3">
+                                    {novel.keyword.split(/\s+/).filter(Boolean).slice(0, 8).map((kw, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => onKeywordClick?.(kw)}
+                                            className="text-[10px] px-2 py-0.5 rounded-full transition-colors"
+                                            style={{
+                                                background: "rgba(26,39,68,0.05)",
+                                                color: "#4a5c84",
+                                                border: "1px solid rgba(26,39,68,0.10)",
+                                                cursor: onKeywordClick ? "pointer" : "default",
+                                                fontFamily: "'Noto Sans JP', sans-serif",
+                                            }}
+                                            title={onKeywordClick ? `「${kw}」で検索` : undefined}
+                                        >
+                                            #{kw}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2">
+                                <a
+                                    href={`https://ncode.syosetu.com/${novel.ncode.toLowerCase()}/`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg transition-colors"
+                                    style={{
+                                        background: "#1a2744",
+                                        color: "rgba(245,241,234,0.95)",
+                                        textDecoration: "none",
+                                        letterSpacing: "0.04em",
+                                    }}
+                                >
+                                    <BookOpen className="w-3.5 h-3.5" />
+                                    作品を読む
+                                </a>
+                                {onSimilarSearch && novel.keyword && (
+                                    <button
+                                        onClick={handleSimilarSearch}
+                                        className="flex items-center gap-1 text-xs px-3 py-2 rounded-lg transition-colors"
+                                        style={{
+                                            background: "rgba(26,39,68,0.06)",
+                                            color: "#1a2744",
+                                            border: "1px solid rgba(26,39,68,0.12)",
+                                            cursor: "pointer",
+                                            fontFamily: "'Noto Sans JP', sans-serif",
+                                        }}
+                                    >
+                                        <Search className="w-3.5 h-3.5" />
+                                        類似作品
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense, useMemo } from "react";
 import {
   Search, Filter, RotateCcw, Loader2, AlertCircle,
   BookMarked, ChevronLeft, ChevronRight, BookOpen,
@@ -41,7 +41,6 @@ const MAX_LENGTH_OPTIONS = [
   { value: "1000000", label: "100万字以内" },
 ];
 
-// 読了時間フィルターオプション（文字数ベース、500字/分で計算）
 const READING_TIME_OPTIONS = [
   { value: "", label: "指定なし" },
   { value: "0-15000", label: "30分以内（〜1.5万字）" },
@@ -52,7 +51,6 @@ const READING_TIME_OPTIONS = [
   { value: "500000-", label: "超長編（50万字以上）" },
 ];
 
-// 最終更新日フィルターオプション
 const LAST_UPDATE_OPTIONS = [
   { value: "", label: "指定なし" },
   { value: "7", label: "1週間以内" },
@@ -60,6 +58,13 @@ const LAST_UPDATE_OPTIONS = [
   { value: "90", label: "3ヶ月以内" },
   { value: "180", label: "半年以内" },
   { value: "365", label: "1年以内" },
+];
+
+const QUICK_ORDERS = [
+  { value: "hyoka", label: "評価順" },
+  { value: "favnovelcnt", label: "ブクマ順" },
+  { value: "weeklypoint", label: "週間" },
+  { value: "new", label: "新着順" },
 ];
 
 export default function Home() {
@@ -124,7 +129,6 @@ function TagCloud({ novels, onTagSearch }: {
 
   const handleSingleClick = (tag: string) => {
     if (selectedTags.length === 0) {
-      // シングルクリック時はそのまま即検索
       onTagSearch([tag], "and");
     } else {
       toggleTag(tag);
@@ -158,7 +162,6 @@ function TagCloud({ novels, onTagSearch }: {
           </button>
         </div>
       </div>
-      {/* Selected tags summary */}
       {selectedTags.length > 0 && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <span className="text-xs text-muted">選択中:</span>
@@ -166,12 +169,7 @@ function TagCloud({ novels, onTagSearch }: {
             <span key={tag} className="inline-flex items-center">
               <span className="text-xs font-medium text-primary-light bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
                 {tag}
-                <button
-                  onClick={() => toggleTag(tag)}
-                  className="ml-1 text-muted hover:text-red-400"
-                >
-                  ×
-                </button>
+                <button onClick={() => toggleTag(tag)} className="ml-1 text-muted hover:text-red-400">×</button>
               </span>
               {i < selectedTags.length - 1 && (
                 <span className="text-[10px] text-muted mx-1 font-bold">
@@ -180,16 +178,10 @@ function TagCloud({ novels, onTagSearch }: {
               )}
             </span>
           ))}
-          <button
-            onClick={handleSearch}
-            className="text-xs font-semibold text-white bg-primary/80 hover:bg-primary px-3 py-1 rounded-full transition-all"
-          >
+          <button onClick={handleSearch} className="text-xs font-semibold text-white bg-primary/80 hover:bg-primary px-3 py-1 rounded-full transition-all">
             この条件で検索
           </button>
-          <button
-            onClick={() => setSelectedTags([])}
-            className="text-xs text-muted hover:text-foreground transition-colors"
-          >
+          <button onClick={() => setSelectedTags([])} className="text-xs text-muted hover:text-foreground transition-colors">
             クリア
           </button>
         </div>
@@ -229,6 +221,7 @@ function TagCloud({ novels, onTagSearch }: {
 function SearchPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // 検索フォームの状態
   const [keyword, setKeyword] = useState("");
@@ -265,11 +258,20 @@ function SearchPageInner() {
   const [hasSearched, setHasSearched] = useState(false);
   const [similarSourceTitle, setSimilarSourceTitle] = useState<string | null>(null);
 
-
   // URL共有
   const [shareCopied, setShareCopied] = useState(false);
 
   const totalPages = Math.ceil(Math.min(totalCount, 2000) / PER_PAGE);
+
+  // ジャンルチップ用フラット配列
+  const flatGenres = GENRE_GROUPS.flatMap((g) =>
+    g.genres.map((genre) => ({ value: String(genre.value), label: genre.label, group: g.label }))
+  );
+
+  // 有効な詳細フィルター数
+  const activeAdvancedCount =
+    [novelType, readingTime, lastUpdate, notKeyword, tagKeyword, minLen, maxLen].filter(Boolean).length +
+    (excludeStop ? 1 : 0);
 
   // URLパラメータから検索条件を復元
   useEffect(() => {
@@ -322,7 +324,6 @@ function SearchPageInner() {
       if (genre) params.set("genre", genre);
       params.set("order", order);
 
-      // 読了時間フィルター → 文字数に変換
       if (readingTime) {
         const [rtMin, rtMax] = readingTime.split("-");
         if (rtMin && !minLen) params.set("minlen", rtMin);
@@ -332,7 +333,6 @@ function SearchPageInner() {
         if (maxLen) params.set("maxlen", maxLen);
       }
 
-      // 最終更新日フィルター
       if (lastUpdate) {
         const days = Number(lastUpdate);
         const now = Math.floor(Date.now() / 1000);
@@ -354,6 +354,8 @@ function SearchPageInner() {
       setIsLoading(true);
       setError(null);
       setHasSearched(true);
+      setShowRandom(false);
+      setRandomNovels([]);
       const params = buildSearchParams(page);
 
       try {
@@ -392,7 +394,6 @@ function SearchPageInner() {
     router.replace("/", { scroll: false });
   };
 
-  // プリセット保存
   const handleSavePreset = () => {
     if (!presetName.trim()) return;
     savePreset({
@@ -404,7 +405,6 @@ function SearchPageInner() {
     setShowSavePreset(false);
   };
 
-  // プリセット適用
   const applyPreset = (preset: SearchPreset) => {
     setKeyword(preset.keyword);
     setTagKeyword(preset.tagKeyword);
@@ -420,17 +420,17 @@ function SearchPageInner() {
     setShowPresets(false);
   };
 
-  // プリセット削除
   const handleDeletePreset = (id: string) => {
     deletePreset(id);
     setPresets(getPresets());
   };
 
-  // ランダムおすすめ
   const handleRandom = async (count: 1 | 10 = gachaCount) => {
     setIsRandomLoading(true);
     setShowRandom(true);
     setRandomNovels([]);
+    setHasSearched(false);
+    setNovels([]);
     try {
       const countParams = new URLSearchParams();
       if (genre) countParams.set("genre", genre);
@@ -448,7 +448,6 @@ function SearchPageInner() {
         return;
       }
 
-      // 10連の場合はランダムなオフセットから10件まとめて取得
       const maxOffset = Math.max(1, total - count + 1);
       const randomOffset = Math.floor(Math.random() * maxOffset) + 1;
       const params = new URLSearchParams();
@@ -476,11 +475,9 @@ function SearchPageInner() {
     setTimeout(() => doSearch(1), 0);
   };
 
-  // 作者検索
   const handleAuthorSearch = (authorName: string) => {
     setKeyword(authorName);
     setSimilarSourceTitle(null);
-    // wnameパラメータを使って作者名で検索
     const params = new URLSearchParams();
     params.set("word", authorName);
     params.set("wname", "1");
@@ -489,7 +486,6 @@ function SearchPageInner() {
     fetchWithParams(params);
   };
 
-  // URL共有
   const handleShareSearch = async () => {
     const params = buildSearchParams();
     const shareUrl = `${window.location.origin}/?${params.toString()}`;
@@ -498,7 +494,6 @@ function SearchPageInner() {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
     } catch {
-      // フォールバック
       const input = document.createElement("input");
       input.value = shareUrl;
       document.body.appendChild(input);
@@ -510,18 +505,13 @@ function SearchPageInner() {
     }
   };
 
-
   const handleTagSearch = (tags: string[], mode: "and" | "or") => {
-    if (mode === "and") {
-      setKeyword(tags.join(" "));
-    } else {
-      // OR検索: 各タグをスペース区切りで設定
-      setKeyword(tags.join(" "));
-    }
+    setKeyword(tags.join(" "));
     setSimilarSourceTitle(null);
     setTimeout(() => doSearch(1), 0);
   };
 
+  const handleKeywordClick = (kw: string) => handleTagSearch([kw], "and");
 
   const goToPage = (page: number) => {
     if (page < 1 || page > totalPages) return;
@@ -546,100 +536,294 @@ function SearchPageInner() {
 
   return (
     <main className="min-h-screen pb-16">
-      <div className="max-w-6xl mx-auto px-4 mt-8">
-        {/* Search Panel */}
-        <form onSubmit={handleSearch} className="glass rounded-3xl p-6 mb-8">
-          {/* Main search row */}
-          <div className="flex flex-col md:flex-row gap-3 mb-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+      <div className="max-w-6xl mx-auto px-4 mt-4 md:mt-8">
+
+        {/* ── Hero Gacha ─────────────────────────────────────── */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(26,39,68,0.96) 0%, rgba(28,50,90,0.95) 100%)",
+          borderRadius: 16,
+          padding: "28px 24px",
+          border: "1px solid rgba(184,136,58,0.25)",
+          boxShadow: "0 8px 32px rgba(24,21,15,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
+          position: "relative",
+          overflow: "hidden",
+          marginBottom: 20,
+        }}>
+          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(184,136,58,0.08)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -20, left: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(184,136,58,0.06)", pointerEvents: "none" }} />
+
+          <p style={{ fontSize: 10, letterSpacing: "0.18em", color: "rgba(184,136,58,0.8)", textTransform: "uppercase", marginBottom: 8, fontWeight: 600 }}>
+            今日の一冊を見つけよう
+          </p>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "rgba(245,241,234,0.96)", letterSpacing: "0.03em", marginBottom: 6, lineHeight: 1.3 }}>
+            気分でガチャ
+          </h2>
+          <p style={{ fontSize: 12, color: "rgba(245,241,234,0.5)", marginBottom: 20, lineHeight: 1.6 }}>
+            条件を指定しなくても、評価の高い作品からランダムにピックアップ
+          </p>
+
+          {/* 1回 / 10連 トグル */}
+          <div className="flex items-center gap-2 mb-4">
+            {([1, 10] as const).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setGachaCount(n)}
+                style={{
+                  padding: "4px 16px",
+                  borderRadius: 16,
+                  border: `1px solid ${gachaCount === n ? "rgba(184,136,58,0.6)" : "rgba(255,255,255,0.18)"}`,
+                  background: gachaCount === n ? "rgba(184,136,58,0.18)" : "rgba(255,255,255,0.05)",
+                  color: gachaCount === n ? "rgba(245,241,234,0.95)" : "rgba(245,241,234,0.45)",
+                  fontSize: 12,
+                  fontWeight: gachaCount === n ? 700 : 400,
+                  cursor: "pointer",
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  letterSpacing: "0.04em",
+                  transition: "all 0.15s",
+                }}
+              >
+                {n === 1 ? "1回" : "10連"}
+              </button>
+            ))}
+          </div>
+
+          {/* ガチャボタン */}
+          <div className="flex gap-2.5 flex-wrap items-center">
+            <button
+              onClick={() => handleRandom(gachaCount)}
+              disabled={isRandomLoading}
+              className="gacha-btn flex-1 flex items-center justify-center gap-2"
+              style={{
+                padding: "14px 24px",
+                background: "linear-gradient(135deg, #b8883a 0%, #d4a655 100%)",
+                borderRadius: 10,
+                fontWeight: 700,
+                fontSize: 16,
+                letterSpacing: "0.06em",
+                boxShadow: "0 4px 16px rgba(184,136,58,0.35)",
+                minWidth: 140,
+                fontFamily: "'Noto Sans JP', sans-serif",
+              }}
+            >
+              {isRandomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Dices className="w-5 h-5" />}
+              {isRandomLoading ? "検索中..." : gachaCount === 10 ? "10連ガチャ" : "ガチャを引く"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAdvanced(true);
+                setTimeout(() => searchRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+              }}
+              style={{
+                padding: "14px 16px",
+                background: "rgba(255,255,255,0.08)",
+                color: "rgba(245,241,234,0.7)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 10,
+                fontSize: 13,
+                letterSpacing: "0.04em",
+                cursor: "pointer",
+                fontFamily: "'Noto Sans JP', sans-serif",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🎯 条件付きガチャ
+            </button>
+          </div>
+        </div>
+
+        {/* ── Divider ────────────────────────────────────────── */}
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex-1 h-px" style={{ background: "rgba(24,21,15,0.08)" }} />
+          <span style={{ fontSize: 10, color: "#7a7369", letterSpacing: "0.14em", textTransform: "uppercase" }}>または条件で検索</span>
+          <div className="flex-1 h-px" style={{ background: "rgba(24,21,15,0.08)" }} />
+        </div>
+
+        {/* ── Search Section ──────────────────────────────────── */}
+        <div ref={searchRef} className="glass rounded-2xl p-4 mb-6">
+          {/* Search bar */}
+          <form onSubmit={handleSearch}>
+            <div
+              className="flex items-center gap-2 mb-4"
+              style={{
+                background: "rgba(252,249,243,0.95)",
+                border: "1px solid rgba(24,21,15,0.12)",
+                borderRadius: 12,
+                padding: "4px 4px 4px 14px",
+                boxShadow: "0 2px 12px rgba(24,21,15,0.06), inset 0 1px 0 rgba(255,255,255,0.9)",
+              }}
+            >
+              <Search className="w-4 h-4 flex-shrink-0" style={{ color: "#7a7369" }} />
               <input
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="キーワードで検索（例: 異世界 転生 チート）"
-                className="form-input pl-11"
+                placeholder="キーワードで検索..."
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontSize: 16,
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  color: "#18150f",
+                  padding: "10px 0",
+                }}
               />
-            </div>
-            <select value={genre} onChange={(e) => setGenre(e.target.value)} className="form-input md:w-56">
-              <option value="">すべてのジャンル</option>
-              {GENRE_GROUPS.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.genres.map((g) => (
-                    <option key={g.value} value={g.value}>{g.label}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <select value={order} onChange={(e) => setOrder(e.target.value)} className="form-input md:w-48">
-              {ORDER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Advanced & Presets toggle */}
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
-            >
-              <Filter className="w-4 h-4" />
-              詳細フィルター
-              <ChevronRight className={`w-4 h-4 transition-transform ${showAdvanced ? "rotate-90" : ""}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPresets(!showPresets)}
-              className="flex items-center gap-2 text-sm text-muted hover:text-foreground transition-colors"
-            >
-              <FolderOpen className="w-4 h-4" />
-              プリセット ({presets.length})
-            </button>
-          </div>
-
-          {/* Presets panel */}
-          <AnimatePresence>
-            {showPresets && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
+              {keyword && (
+                <button
+                  type="button"
+                  onClick={() => setKeyword("")}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#7a7369", padding: "0 4px", display: "flex", alignItems: "center" }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  padding: "10px 20px",
+                  background: "#1a2744",
+                  color: "rgba(245,241,234,0.96)",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  letterSpacing: "0.04em",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  opacity: isLoading ? 0.6 : 1,
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                }}
               >
-                <div className="mb-4 pb-4 border-b border-border">
-                  {presets.length === 0 ? (
-                    <p className="text-sm text-muted">保存されたプリセットはありません</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {presets.map((p) => (
-                        <div key={p.id} className="flex items-center gap-1 rounded-xl border px-3 py-1.5 group" style={{ background: "rgba(0,119,237,0.06)", borderColor: "rgba(0,119,237,0.15)" }}>
-                          <button
-                            type="button"
-                            onClick={() => applyPreset(p)}
-                            className="text-sm text-foreground hover:text-primary transition-colors"
-                          >
-                            {p.name}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePreset(p.id)}
-                            className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3 h-3 text-muted hover:text-red-400" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "検索"}
+              </button>
+            </div>
+          </form>
 
-          {/* Advanced filters */}
+          {/* Genre chips — horizontal scroll */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3" style={{ scrollbarWidth: "none" }}>
+            {/* すべて */}
+            <button
+              type="button"
+              onClick={() => setGenre("")}
+              style={{
+                flexShrink: 0,
+                padding: "6px 14px",
+                borderRadius: 20,
+                border: `1px solid ${genre === "" ? "#1a2744" : "rgba(24,21,15,0.12)"}`,
+                background: genre === "" ? "#1a2744" : "rgba(252,249,243,0.85)",
+                color: genre === "" ? "rgba(245,241,234,0.95)" : "#7a7369",
+                fontSize: 12,
+                fontWeight: genre === "" ? 600 : 400,
+                cursor: "pointer",
+                fontFamily: "'Noto Sans JP', sans-serif",
+                letterSpacing: "0.03em",
+                transition: "all 0.15s",
+                whiteSpace: "nowrap",
+              }}
+            >
+              すべて
+            </button>
+            {flatGenres.map((g) => (
+              <button
+                key={g.value}
+                type="button"
+                onClick={() => setGenre(g.value)}
+                style={{
+                  flexShrink: 0,
+                  padding: "6px 14px",
+                  borderRadius: 20,
+                  border: `1px solid ${genre === g.value ? "#1a2744" : "rgba(24,21,15,0.12)"}`,
+                  background: genre === g.value ? "#1a2744" : "rgba(252,249,243,0.85)",
+                  color: genre === g.value ? "rgba(245,241,234,0.95)" : "#7a7369",
+                  fontSize: 12,
+                  fontWeight: genre === g.value ? 600 : 400,
+                  cursor: "pointer",
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  letterSpacing: "0.03em",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+                title={g.group}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Order chips + advanced toggle */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span style={{ fontSize: 11, color: "#7a7369", flexShrink: 0 }}>並び：</span>
+            {QUICK_ORDERS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setOrder(o.value)}
+                style={{
+                  flexShrink: 0,
+                  padding: "4px 10px",
+                  borderRadius: 16,
+                  border: `1px solid ${order === o.value ? "#b8883a" : "rgba(24,21,15,0.10)"}`,
+                  background: order === o.value ? "rgba(184,136,58,0.10)" : "transparent",
+                  color: order === o.value ? "#7a5c1a" : "#7a7369",
+                  fontSize: 11,
+                  fontWeight: order === o.value ? 600 : 400,
+                  cursor: "pointer",
+                  fontFamily: "'Noto Sans JP', sans-serif",
+                  letterSpacing: "0.02em",
+                  transition: "all 0.15s",
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+
+            {/* Advanced toggle */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex items-center gap-1"
+              style={{
+                marginLeft: "auto",
+                padding: "4px 12px",
+                borderRadius: 16,
+                border: `1px solid ${activeAdvancedCount > 0 ? "#1a2744" : "rgba(24,21,15,0.12)"}`,
+                background: activeAdvancedCount > 0 ? "rgba(26,39,68,0.07)" : "transparent",
+                color: activeAdvancedCount > 0 ? "#1a2744" : "#7a7369",
+                fontSize: 11,
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "'Noto Sans JP', sans-serif",
+                letterSpacing: "0.02em",
+                flexShrink: 0,
+              }}
+            >
+              <Filter className="w-3 h-3" />
+              詳細フィルター
+              {activeAdvancedCount > 0 && (
+                <span style={{
+                  background: "#1a2744",
+                  color: "white",
+                  borderRadius: "50%",
+                  width: 16,
+                  height: 16,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 9,
+                  fontWeight: 700,
+                }}>{activeAdvancedCount}</span>
+              )}
+              <span style={{ fontSize: 10, opacity: 0.6 }}>{showAdvanced ? "▲" : "▼"}</span>
+            </button>
+          </div>
+
+          {/* Advanced panel */}
           <AnimatePresence>
             {showAdvanced && (
               <motion.div
@@ -649,143 +833,171 @@ function SearchPageInner() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pb-4 border-b border-border">
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">
-                      <Tag className="w-3 h-3 inline mr-1" />
-                      タグ・キーワード検索
-                    </label>
-                    <input
-                      type="text"
-                      value={tagKeyword}
-                      onChange={(e) => setTagKeyword(e.target.value)}
-                      placeholder="タグで絞り込み"
-                      className="form-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">除外キーワード</label>
-                    <input
-                      type="text"
-                      value={notKeyword}
-                      onChange={(e) => setNotKeyword(e.target.value)}
-                      placeholder="除外したいワード"
-                      className="form-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">最低文字数</label>
-                    <select value={minLen} onChange={(e) => setMinLen(e.target.value)} className="form-input" disabled={!!readingTime}>
-                      {MIN_LENGTH_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">最大文字数</label>
-                    <select value={maxLen} onChange={(e) => setMaxLen(e.target.value)} className="form-input" disabled={!!readingTime}>
-                      {MAX_LENGTH_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">作品タイプ</label>
-                    <select value={novelType} onChange={(e) => setNovelType(e.target.value)} className="form-input">
-                      {TYPE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">
-                      <Timer className="w-3 h-3 inline mr-1" />
-                      読了時間
-                    </label>
-                    <select
-                      value={readingTime}
-                      onChange={(e) => { setReadingTime(e.target.value); if (e.target.value) { setMinLen(""); setMaxLen(""); } }}
-                      className="form-input"
+                <div className="pt-4 mt-3 border-t border-border">
+                  {/* Preset / Share / Save controls */}
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setShowPresets(!showPresets)}
+                      className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
                     >
-                      {READING_TIME_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      プリセット ({presets.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleShareSearch}
+                      className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      {shareCopied ? <span className="text-green-400">コピー！</span> : "共有"}
+                    </button>
+                    {showSavePreset ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={presetName}
+                          onChange={(e) => setPresetName(e.target.value)}
+                          placeholder="プリセット名"
+                          className="form-input w-32 py-1 text-xs"
+                          autoFocus
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSavePreset(); } }}
+                        />
+                        <button type="button" onClick={handleSavePreset} className="text-xs text-primary hover:text-primary-light">保存</button>
+                        <button type="button" onClick={() => setShowSavePreset(false)} className="text-xs text-muted">取消</button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowSavePreset(true)}
+                        className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        条件を保存
+                      </button>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs text-muted mb-1 block">
-                      <Calendar className="w-3 h-3 inline mr-1" />
-                      最終更新日
-                    </label>
-                    <select value={lastUpdate} onChange={(e) => setLastUpdate(e.target.value)} className="form-input">
-                      {LAST_UPDATE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+
+                  {/* Presets list */}
+                  <AnimatePresence>
+                    {showPresets && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mb-4 pb-3 border-b border-border">
+                          {presets.length === 0 ? (
+                            <p className="text-xs text-muted">保存されたプリセットはありません</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {presets.map((p) => (
+                                <div key={p.id} className="flex items-center gap-1 rounded-xl border px-3 py-1.5 group" style={{ background: "rgba(0,119,237,0.06)", borderColor: "rgba(0,119,237,0.15)" }}>
+                                  <button type="button" onClick={() => applyPreset(p)} className="text-xs text-foreground hover:text-primary transition-colors">{p.name}</button>
+                                  <button type="button" onClick={() => handleDeletePreset(p.id)} className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <X className="w-3 h-3 text-muted hover:text-red-400" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Advanced filters grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">
+                        <Tag className="w-3 h-3 inline mr-1" />タグ・キーワード検索
+                      </label>
+                      <input type="text" value={tagKeyword} onChange={(e) => setTagKeyword(e.target.value)} placeholder="タグで絞り込み" className="form-input" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">除外キーワード</label>
+                      <input type="text" value={notKeyword} onChange={(e) => setNotKeyword(e.target.value)} placeholder="除外したいワード" className="form-input" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">最低文字数</label>
+                      <select value={minLen} onChange={(e) => setMinLen(e.target.value)} className="form-input" disabled={!!readingTime}>
+                        {MIN_LENGTH_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">最大文字数</label>
+                      <select value={maxLen} onChange={(e) => setMaxLen(e.target.value)} className="form-input" disabled={!!readingTime}>
+                        {MAX_LENGTH_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">作品タイプ</label>
+                      <select value={novelType} onChange={(e) => setNovelType(e.target.value)} className="form-input">
+                        {TYPE_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">
+                        <Timer className="w-3 h-3 inline mr-1" />読了時間
+                      </label>
+                      <select
+                        value={readingTime}
+                        onChange={(e) => { setReadingTime(e.target.value); if (e.target.value) { setMinLen(""); setMaxLen(""); } }}
+                        className="form-input"
+                      >
+                        {READING_TIME_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">
+                        <Calendar className="w-3 h-3 inline mr-1" />最終更新日
+                      </label>
+                      <select value={lastUpdate} onChange={(e) => setLastUpdate(e.target.value)} className="form-input">
+                        {LAST_UPDATE_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted mb-1 block">並び順（詳細）</label>
+                      <select value={order} onChange={(e) => setOrder(e.target.value)} className="form-input">
+                        {ORDER_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+                      </select>
+                    </div>
+                    <div className="flex items-center">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={excludeStop}
+                          onChange={(e) => setExcludeStop(e.target.checked)}
+                          className="w-4 h-4 rounded border-border bg-surface accent-primary cursor-pointer"
+                        />
+                        <span className="text-xs text-muted">長期停止中を除外</span>
+                      </label>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={excludeStop}
-                        onChange={(e) => setExcludeStop(e.target.checked)}
-                        className="w-4 h-4 rounded border-border bg-surface accent-primary cursor-pointer"
-                      />
-                      <span className="text-xs text-muted">長期停止中を除外</span>
-                    </label>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => doSearch(1)}
+                      disabled={isLoading}
+                      className="search-btn flex items-center gap-1.5"
+                    >
+                      {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      この条件で検索
+                    </button>
+                    <button type="button" onClick={handleReset} className="reset-btn flex items-center gap-1.5">
+                      <RotateCcw className="w-4 h-4" />
+                      リセット
+                    </button>
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={isLoading} className="search-btn flex items-center gap-2">
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              検索
-            </button>
-            <button type="button" onClick={handleReset} className="reset-btn flex items-center gap-2">
-              <RotateCcw className="w-4 h-4" />
-              リセット
-            </button>
-            {/* Save Preset */}
-            {showSavePreset ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={presetName}
-                  onChange={(e) => setPresetName(e.target.value)}
-                  placeholder="プリセット名"
-                  className="form-input w-40 py-2 text-sm"
-                  autoFocus
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSavePreset(); } }}
-                />
-                <button type="button" onClick={handleSavePreset} className="text-sm text-primary hover:text-primary-light">保存</button>
-                <button type="button" onClick={() => setShowSavePreset(false)} className="text-sm text-muted">取消</button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowSavePreset(true)}
-                className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
-              >
-                <Save className="w-4 h-4" />
-                条件を保存
-              </button>
-            )}
-            {/* URL共有 */}
-            <button
-              type="button"
-              onClick={handleShareSearch}
-              className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors"
-              title="検索条件をURLとしてコピー"
-            >
-              <Share2 className="w-4 h-4" />
-              {shareCopied ? <span className="text-green-400">コピーしました！</span> : "共有"}
-            </button>
-          </div>
-        </form>
+        </div>
 
         {/* Error */}
         {error && (
@@ -795,7 +1007,62 @@ function SearchPageInner() {
           </div>
         )}
 
-        {/* Loading */}
+        {/* ── Gacha Results ────────────────────────────────────── */}
+        {isRandomLoading && (
+          <div className="space-y-4 mb-8">
+            {[...Array(gachaCount === 10 ? 4 : 1)].map((_, i) => (
+              <div key={i} className="glass rounded-xl p-6">
+                <div className="skeleton h-6 w-2/3 mb-3" />
+                <div className="skeleton h-4 w-1/3 mb-4" />
+                <div className="skeleton h-4 w-full mb-2" />
+                <div className="skeleton h-4 w-4/5" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <AnimatePresence>
+          {showRandom && randomNovels.length > 0 && !isRandomLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8"
+            >
+              <div className="flex items-center gap-2 mb-4 justify-center">
+                <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
+                <span className="text-sm font-semibold" style={{ color: "#b8883a" }}>
+                  {randomNovels.length === 1 ? "あなたへのおすすめ" : `${randomNovels.length}作品をピックアップ`}
+                </span>
+                <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
+              </div>
+              <div className={randomNovels.length === 1 ? "max-w-2xl mx-auto" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+                {randomNovels.map((novel, i) => (
+                  <motion.div
+                    key={novel.ncode}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.25 }}
+                  >
+                    <NovelCard
+                      novel={novel}
+                      onSimilarSearch={handleSimilarSearch}
+                      onAuthorSearch={handleAuthorSearch}
+                      onKeywordClick={handleKeywordClick}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {showRandom && !isRandomLoading && randomNovels.length === 0 && (
+          <p className="text-muted text-center mb-8 text-sm">条件に合う作品が見つかりませんでした</p>
+        )}
+
+        {/* ── Search Loading ───────────────────────────────────── */}
         {isLoading && (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
@@ -809,7 +1076,7 @@ function SearchPageInner() {
           </div>
         )}
 
-        {/* Results */}
+        {/* ── Search Results ───────────────────────────────────── */}
         {!isLoading && hasSearched && (
           <>
             <div className="flex items-center justify-between mb-6">
@@ -821,9 +1088,7 @@ function SearchPageInner() {
                       <span className="text-accent">「{similarSourceTitle}」</span>
                       <span className="text-sm font-normal text-muted ml-1">に似た作品</span>
                     </>
-                  ) : (
-                    "検索結果"
-                  )}
+                  ) : "検索結果"}
                   <span className="text-primary ml-2 text-base num-badge">{totalCount.toLocaleString()}件</span>
                 </h2>
               </div>
@@ -834,7 +1099,6 @@ function SearchPageInner() {
               )}
             </div>
 
-            {/* Tag Cloud */}
             {novels.length > 0 && (
               <TagCloud novels={novels} onTagSearch={handleTagSearch} />
             )}
@@ -847,6 +1111,7 @@ function SearchPageInner() {
                     novel={novel}
                     onSimilarSearch={handleSimilarSearch}
                     onAuthorSearch={handleAuthorSearch}
+                    onKeywordClick={handleKeywordClick}
                   />
                 ))}
               </div>
@@ -887,9 +1152,9 @@ function SearchPageInner() {
           </>
         )}
 
-        {/* Welcome + Random */}
-        {!hasSearched && !isLoading && (
-          <div className="text-center py-16">
+        {/* ── Welcome state ───────────────────────────────────── */}
+        {!hasSearched && !isLoading && !showRandom && (
+          <div className="text-center py-12">
             <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-border">
               <BookOpen className="w-10 h-10 text-primary-light" />
             </div>
@@ -897,13 +1162,11 @@ function SearchPageInner() {
               小説家になろうの作品を探そう
             </h2>
             <p className="text-muted max-w-md mx-auto leading-relaxed mb-6">
-              キーワード、ジャンル、並び順などの条件を設定して
+              上のガチャでランダム発見、またはキーワード・ジャンルで絞り込んで
               <br />
               お気に入りの小説を見つけましょう
             </p>
-
-            {/* Quick search tags */}
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
+            <div className="flex flex-wrap justify-center gap-3">
               {["異世界転生", "悪役令嬢", "追放", "スローライフ", "最強主人公"].map((tag) => (
                 <button
                   key={tag}
@@ -914,89 +1177,9 @@ function SearchPageInner() {
                 </button>
               ))}
             </div>
-
-            {/* Random recommendation */}
-            <div className="max-w-lg mx-auto">
-              {/* 回数セレクター */}
-              <div className="flex items-center justify-center gap-2 mb-3">
-                {([1, 10] as const).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setGachaCount(n)}
-                    className="px-5 py-1.5 rounded text-sm font-semibold transition-all"
-                    style={{
-                      background: gachaCount === n ? "rgba(26,39,68,0.10)" : "transparent",
-                      color: gachaCount === n ? "#1a2744" : "#7a7369",
-                      border: `1px solid ${gachaCount === n ? "rgba(26,39,68,0.22)" : "rgba(24,21,15,0.12)"}`,
-                    }}
-                  >
-                    {n === 1 ? "1回" : "10連"}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => handleRandom(gachaCount)}
-                disabled={isRandomLoading}
-                className="gacha-btn w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3"
-              >
-                {isRandomLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <Dices className="w-6 h-6" />
-                )}
-                {gachaCount === 10 ? "10連ガチャ" : "ランダムおすすめガチャ"}
-                {isRandomLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <Dices className="w-6 h-6" />
-                )}
-              </button>
-              <p className="text-xs text-muted mt-2">ジャンルや文字数の条件はフォームで設定できます</p>
-            </div>
-
-            {/* Random results */}
-            <AnimatePresence>
-              {showRandom && randomNovels.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-8 max-w-4xl mx-auto text-left"
-                >
-                  <div className="flex items-center gap-2 mb-4 justify-center">
-                    <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
-                    <span className="text-sm font-semibold" style={{ color: "#b8883a" }}>
-                      {randomNovels.length === 1 ? "あなたへのおすすめ" : `${randomNovels.length}作品をピックアップ`}
-                    </span>
-                    <Sparkles className="w-4 h-4" style={{ color: "#b8883a" }} />
-                  </div>
-                  <div className={randomNovels.length === 1
-                    ? "max-w-2xl mx-auto"
-                    : "grid grid-cols-1 md:grid-cols-2 gap-4"
-                  }>
-                    {randomNovels.map((novel, i) => (
-                      <motion.div
-                        key={novel.ncode}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.05, duration: 0.25 }}
-                      >
-                        <NovelCard novel={novel} onSimilarSearch={handleSimilarSearch} onAuthorSearch={handleAuthorSearch} />
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            {showRandom && !isRandomLoading && randomNovels.length === 0 && (
-              <p className="text-muted mt-4">条件に合う作品が見つかりませんでした</p>
-            )}
           </div>
         )}
       </div>
-
     </main>
   );
 }
