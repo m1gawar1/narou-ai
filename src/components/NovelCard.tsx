@@ -150,6 +150,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
     const [isFav, setIsFav] = useState(false);
     const [showScore, setShowScore] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const [storyExpanded, setStoryExpanded] = useState(false);
     const novelStatus = getNovelStatus(novel);
     const readingTimeColor = getReadingTimeColor(novel.length);
     const updateFreq = getUpdateFrequency(novel);
@@ -258,10 +259,25 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                 </div>
             </div>
 
-            {/* Story excerpt — line-clamp-2 */}
-            <p className="text-sm text-foreground/70 leading-relaxed line-clamp-2 mb-4">
-                {novel.story?.replace(/<[^>]*>/g, "")}
-            </p>
+            {/* Story excerpt — タップで展開 */}
+            <div className="mb-4">
+                <p
+                    onClick={() => setStoryExpanded((v) => !v)}
+                    className={`text-sm text-foreground/70 leading-relaxed cursor-pointer select-none ${storyExpanded ? "" : "line-clamp-2"}`}
+                    title={storyExpanded ? "タップして折りたたむ" : "タップして全文を見る"}
+                >
+                    {novel.story?.replace(/<[^>]*>/g, "")}
+                </p>
+                {!storyExpanded && (
+                    <button
+                        onClick={() => setStoryExpanded(true)}
+                        className="text-[11px] mt-0.5 transition-colors"
+                        style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "'Noto Sans JP', sans-serif" }}
+                    >
+                        続きを読む…
+                    </button>
+                )}
+            </div>
 
             {/* Score Card */}
             <AnimatePresence>
