@@ -338,15 +338,32 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                 </div>
             </div>
 
-            {/* Expand toggle */}
-            <button
-                onClick={() => setExpanded((v) => !v)}
-                className="flex items-center gap-1 text-xs transition-colors"
-                style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.02em", padding: "2px 0" }}
-            >
-                {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {expanded ? "詳細を閉じる" : "詳細を見る"}
-            </button>
+            {/* 作品を読む + 詳細トグル */}
+            <div className="flex items-center gap-2 mt-1">
+                <a
+                    href={`https://ncode.syosetu.com/${novel.ncode.toLowerCase()}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
+                    style={{
+                        background: "#1a2744",
+                        color: "rgba(245,241,234,0.95)",
+                        textDecoration: "none",
+                        letterSpacing: "0.04em",
+                    }}
+                >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    作品を読む
+                </a>
+                <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className="flex items-center gap-1 text-xs transition-colors"
+                    style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.02em", padding: "2px 0" }}
+                >
+                    {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    {expanded ? "詳細を閉じる" : "詳細を見る"}
+                </button>
+            </div>
 
             {/* Expanded detail section */}
             <AnimatePresence>
@@ -418,40 +435,23 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                                 </div>
                             )}
 
-                            {/* Action buttons */}
-                            <div className="flex gap-2">
-                                <a
-                                    href={`https://ncode.syosetu.com/${novel.ncode.toLowerCase()}/`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg transition-colors"
+                            {/* 類似作品ボタン */}
+                            {onSimilarSearch && novel.keyword && (
+                                <button
+                                    onClick={handleSimilarSearch}
+                                    className="flex items-center gap-1 text-xs px-3 py-2 rounded-lg transition-colors"
                                     style={{
-                                        background: "#1a2744",
-                                        color: "rgba(245,241,234,0.95)",
-                                        textDecoration: "none",
-                                        letterSpacing: "0.04em",
+                                        background: "rgba(26,39,68,0.06)",
+                                        color: "#1a2744",
+                                        border: "1px solid rgba(26,39,68,0.12)",
+                                        cursor: "pointer",
+                                        fontFamily: "'Noto Sans JP', sans-serif",
                                     }}
                                 >
-                                    <BookOpen className="w-3.5 h-3.5" />
-                                    作品を読む
-                                </a>
-                                {onSimilarSearch && novel.keyword && (
-                                    <button
-                                        onClick={handleSimilarSearch}
-                                        className="flex items-center gap-1 text-xs px-3 py-2 rounded-lg transition-colors"
-                                        style={{
-                                            background: "rgba(26,39,68,0.06)",
-                                            color: "#1a2744",
-                                            border: "1px solid rgba(26,39,68,0.12)",
-                                            cursor: "pointer",
-                                            fontFamily: "'Noto Sans JP', sans-serif",
-                                        }}
-                                    >
-                                        <Search className="w-3.5 h-3.5" />
-                                        類似作品
-                                    </button>
-                                )}
-                            </div>
+                                    <Search className="w-3.5 h-3.5" />
+                                    類似作品を検索
+                                </button>
+                            )}
                         </div>
                     </motion.div>
                 )}
