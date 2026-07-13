@@ -5,7 +5,7 @@ import {
   Search, Filter, RotateCcw, Loader2, AlertCircle,
   BookMarked, ChevronLeft, ChevronRight, BookOpen,
   Tag, Dices, Save, FolderOpen, X, Sparkles,
-  Timer, Calendar, Share2, User
+  Timer, Calendar, Share2, User, Clock
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -16,7 +16,9 @@ import {
   type NarouNovel,
 } from "@/lib/narou";
 import { getPresets, savePreset, deletePreset, type SearchPreset } from "@/lib/presets";
+import { getHistory, clearHistory, type HistoryEntry } from "@/lib/history";
 import NovelCard from "@/components/NovelCard";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 
 const PER_PAGE = 20;
@@ -245,6 +247,7 @@ function SearchPageInner() {
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [similarSourceTitle, setSimilarSourceTitle] = useState<string | null>(null);
@@ -253,6 +256,9 @@ function SearchPageInner() {
 
   // URL共有
   const [shareCopied, setShareCopied] = useState(false);
+
+  // 最近見た作品（閲覧履歴）
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const totalPages = Math.ceil(Math.min(totalCount, 2000) / PER_PAGE);
 
@@ -269,6 +275,7 @@ function SearchPageInner() {
   // URLパラメータから検索条件を復元（マウント時1回）
   useEffect(() => {
     setPresets(getPresets());
+    setHistory(getHistory());
 
     const wordParam = searchParams.get("word");
     const wnameParam = searchParams.get("wname");
@@ -457,6 +464,55 @@ function SearchPageInner() {
     },
     [buildSearchParams]
   );
+
+  // 無限スクロール: 次ページを取得して既存リストに追記する
+  const loadMore = useCallback(async () => {
+    // 発火条件ガード
+    if (!hasSearched || isLoading || isLoadingMore || isMergedResult || currentPage >= totalPages) return;
+    setIsLoadingMore(true);
+    const params = buildSearchParams(currentPage + 1);
+    try {
+      const res = await fetch(`/api/search?${params.toString()}`);
+      if (!res.ok) throw new Error("追加読み込みに失敗しました");
+      const data = await res.json();
+      const more = (data.novels || []) as NarouNovel[];
+      // ncode で重複除去しつつ追記
+      setNovels((prev) => {
+        const seen = new Set(prev.map((n) => n.ncode));
+        const appended = more.filter((n) => !seen.has(n.ncode));
+        return [...prev, ...appended];
+      });
+      setCurrentPage((p) => p + 1);
+    } catch {
+      // エラー時は静かに失敗（setError せず、ローディング状態だけ戻す）
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasSearched, isLoading, isLoadingMore, isMergedResult, currentPage, totalPages, buildSearchParams]);
+
+  // 最新の loadMore を ref に保持（IntersectionObserver の stale closure 回避）
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
+  // sentinel 監視用の observer。sentinel が表示されている間に1度だけ張る
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMoreRef.current();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+    // hasSearched / isMergedResult の変化で sentinel の有無が変わるため再作成する
+  }, [hasSearched, isMergedResult]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1227,7 +1283,7 @@ function SearchPageInner() {
               </div>
               {totalCount > 0 && (
                 <p className="text-sm text-muted">
-                  {((currentPage - 1) * PER_PAGE + 1).toLocaleString()} - {Math.min(currentPage * PER_PAGE, totalCount).toLocaleString()} 件目
+                  {novels.length.toLocaleString()} 件表示中
                 </p>
               )}
             </div>
@@ -1255,6 +1311,18 @@ function SearchPageInner() {
                 </div>
                 <p className="text-lg text-muted">検索結果が見つかりませんでした</p>
                 <p className="text-sm text-muted/60 mt-1">条件を変更してお試しください</p>
+              </div>
+            )}
+
+            {/* 無限スクロール用 sentinel（OR マージ結果では監視しない） */}
+            {!isMergedResult && (
+              <div ref={sentinelRef} className="flex items-center justify-center py-2">
+                {isLoadingMore && (
+                  <span className="flex items-center gap-2 text-sm text-muted">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    読み込み中...
+                  </span>
+                )}
               </div>
             )}
 
@@ -1310,6 +1378,39 @@ function SearchPageInner() {
                 </button>
               ))}
             </div>
+
+            {/* 最近見た作品 */}
+            {history.length > 0 && (
+              <div className="max-w-3xl mx-auto mt-10 text-left">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-4 h-4" style={{ color: "#b8883a" }} />
+                  <h3 className="text-sm font-semibold" style={{ color: "#1a2744" }}>最近見た作品</h3>
+                  <button
+                    type="button"
+                    onClick={() => { clearHistory(); setHistory([]); }}
+                    className="ml-auto text-xs text-muted hover:text-foreground transition-colors"
+                  >
+                    履歴をクリア
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {history.slice(0, 10).map((h) => (
+                    <Link
+                      key={h.ncode}
+                      href={`/novel/${h.ncode.toLowerCase()}`}
+                      className="block rounded-xl px-3 py-2 transition-all hover:bg-primary/10"
+                      style={{
+                        background: "rgba(252,249,243,0.85)",
+                        border: "1px solid rgba(24,21,15,0.10)",
+                      }}
+                    >
+                      <p className="text-sm font-medium truncate" style={{ color: "#1a2744" }}>{h.title}</p>
+                      <p className="text-xs truncate mt-0.5" style={{ color: "#7a7369" }}>{h.writer}</p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Heart, RefreshCw, Loader2, Bell, BellOff, Download, Upload } from "lucide-react";
-import { getFavorites, type FavoriteNovel } from "@/lib/favorites";
+import { useState, useEffect, useMemo } from "react";
+import { Heart, RefreshCw, Loader2, Bell, BellOff, Download, Upload, Check } from "lucide-react";
+import { getFavorites, setFavoriteStatus, markFavoriteAsChecked, type FavoriteNovel } from "@/lib/favorites";
 import { type NarouNovel } from "@/lib/narou";
 import NovelCard from "@/components/NovelCard";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,21 @@ interface UpdateInfo {
     hasUpdate: boolean;
     newLastup?: string;
     newEpisodes?: number;
+    newTotalEpisodes?: number;
 }
+
+type ReadStatus = "unread" | "reading" | "finished";
+
+// ステータスフィルタータブの定義
+const STATUS_TABS: { value: ReadStatus | "all"; label: string }[] = [
+    { value: "all", label: "すべて" },
+    { value: "unread", label: "積読" },
+    { value: "reading", label: "読書中" },
+    { value: "finished", label: "読了" },
+];
+
+// ソート方法の定義
+type SortOrder = "addedDesc" | "addedAsc" | "updatedDesc" | "titleAsc";
 
 export default function FavoritesPage() {
     const router = useRouter();
@@ -21,6 +35,8 @@ export default function FavoritesPage() {
     const [isChecking, setIsChecking] = useState(false);
     const [updateInfos, setUpdateInfos] = useState<Record<string, UpdateInfo>>({});
     const [lastChecked, setLastChecked] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState<ReadStatus | "all">("all");
+    const [sortOrder, setSortOrder] = useState<SortOrder>("addedDesc");
 
     useEffect(() => {
         setFavorites(getFavorites());
@@ -73,6 +89,7 @@ export default function FavoritesPage() {
                         hasUpdate,
                         newLastup: latest.general_lastup,
                         newEpisodes: hasUpdate ? latest.general_all_no - fav.general_all_no : 0,
+                        newTotalEpisodes: latest.general_all_no,
                     };
                 }
             }
@@ -86,6 +103,43 @@ export default function FavoritesPage() {
         } finally {
             setIsChecking(false);
         }
+    };
+
+    // 1作品を既読にする（更新チェックで得た最新情報を保存データへ反映）
+    const markAsRead = (ncode: string) => {
+        const info = updateInfos[ncode];
+        if (!info || !info.hasUpdate || !info.newLastup || info.newTotalEpisodes === undefined) return;
+        markFavoriteAsChecked(ncode, info.newLastup, info.newTotalEpisodes);
+        setFavorites(getFavorites());
+        setUpdateInfos((prev) => ({
+            ...prev,
+            [ncode]: { ...prev[ncode], hasUpdate: false },
+        }));
+    };
+
+    // 更新のあった全作品をまとめて既読にする
+    const markAllAsRead = () => {
+        Object.values(updateInfos)
+            .filter((u) => u.hasUpdate)
+            .forEach((u) => {
+                if (u.newLastup && u.newTotalEpisodes !== undefined) {
+                    markFavoriteAsChecked(u.ncode, u.newLastup, u.newTotalEpisodes);
+                }
+            });
+        setFavorites(getFavorites());
+        setUpdateInfos((prev) => {
+            const next = { ...prev };
+            for (const key of Object.keys(next)) {
+                next[key] = { ...next[key], hasUpdate: false };
+            }
+            return next;
+        });
+    };
+
+    // 作品の読書ステータスを切り替える
+    const handleStatusChange = (ncode: string, status: ReadStatus) => {
+        setFavoriteStatus(ncode, status);
+        setFavorites(getFavorites());
     };
 
     // お気に入りエクスポート

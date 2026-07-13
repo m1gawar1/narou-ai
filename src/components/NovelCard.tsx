@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
-    ExternalLink, BookOpen, Star, Heart, HeartOff,
+    BookOpen, Star, Heart, HeartOff,
     BookMarked, Clock, Tag, Radar, Search,
     Timer, RefreshCw, CalendarDays, User, ChevronDown, ChevronUp
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GENRE_MAP, type NarouNovel } from "@/lib/narou";
 import { addFavorite, removeFavorite, isFavorite } from "@/lib/favorites";
+import { addHistory } from "@/lib/history";
 
 function formatNumber(num: number): string {
     if (num >= 10000) {
@@ -208,16 +210,14 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                 {rankBadge}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                        <a
-                            href={`https://ncode.syosetu.com/${novel.ncode.toLowerCase()}/`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <Link
+                            href={`/novel/${novel.ncode.toLowerCase()}`}
+                            onClick={() => addHistory(novel)}
                             className="text-base sm:text-lg font-bold hover:text-primary-light transition-colors inline-flex items-start gap-2 group"
                             style={{ letterSpacing: "0.01em" }}
                         >
                             <span className="line-clamp-2 sm:line-clamp-1">{novel.title}</span>
-                            <ExternalLink className="w-4 h-4 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
-                        </a>
+                        </Link>
                         <div className="flex items-center gap-1 flex-shrink-0">
                             <button
                                 onClick={() => setShowScore(!showScore)}
@@ -347,6 +347,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                     href={`https://ncode.syosetu.com/${novel.ncode.toLowerCase()}/`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => addHistory(novel)}
                     className="flex items-center justify-center gap-1.5 text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
                     style={{
                         background: "#1a2744",

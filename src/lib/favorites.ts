@@ -20,6 +20,7 @@ export interface FavoriteNovel {
     general_lastup: string;
     isstop: number;
     addedAt: number; // timestamp
+    readStatus?: "unread" | "reading" | "finished"; // 既存データとの後方互換のため optional（未設定は "unread" 扱い）
 }
 
 export function getFavorites(): FavoriteNovel[] {
@@ -51,8 +52,28 @@ export function addFavorite(novel: NarouNovel): void {
         general_lastup: novel.general_lastup,
         isstop: novel.isstop,
         addedAt: Date.now(),
+        readStatus: "unread",
     };
     favorites.unshift(fav);
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+}
+
+// 読書ステータスを更新する
+export function setFavoriteStatus(ncode: string, status: "unread" | "reading" | "finished"): void {
+    const favorites = getFavorites();
+    const target = favorites.find((f) => f.ncode === ncode);
+    if (!target) return;
+    target.readStatus = status;
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+}
+
+// 更新チェックで検出した最新情報を保存データに反映する（既読化）
+export function markFavoriteAsChecked(ncode: string, general_lastup: string, general_all_no: number): void {
+    const favorites = getFavorites();
+    const target = favorites.find((f) => f.ncode === ncode);
+    if (!target) return;
+    target.general_lastup = general_lastup;
+    target.general_all_no = general_all_no;
     localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
 }
 
