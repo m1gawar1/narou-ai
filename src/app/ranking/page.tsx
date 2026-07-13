@@ -31,17 +31,21 @@ export default function RankingPage() {
 
     const totalPages = Math.ceil(Math.min(totalCount, 2000) / PER_PAGE);
 
-    const fetchRanking = useCallback(async (page: number = 1) => {
+    const fetchRanking = useCallback(async (page: number = 1, kw?: string, nkw?: string) => {
         setIsLoading(true);
         setError(null);
+
+        // 引数が省略された場合は state の値を使う
+        const effectiveKeyword = kw !== undefined ? kw : keyword;
+        const effectiveNotKeyword = nkw !== undefined ? nkw : notKeyword;
 
         if (selectedGenres.length <= 1) {
             // 単一ジャンル or 全ジャンル
             const params = new URLSearchParams();
             params.set("period", period);
             if (selectedGenres.length === 1) params.set("genre", String(selectedGenres[0]));
-            if (keyword) params.set("word", keyword);
-            if (notKeyword) params.set("notword", notKeyword);
+            if (effectiveKeyword) params.set("word", effectiveKeyword);
+            if (effectiveNotKeyword) params.set("notword", effectiveNotKeyword);
             params.set("lim", String(PER_PAGE));
             if (page > 1) params.set("st", String((page - 1) * PER_PAGE + 1));
 
@@ -66,8 +70,8 @@ export default function RankingPage() {
                     const params = new URLSearchParams();
                     params.set("period", period);
                     params.set("genre", String(g));
-                    if (keyword) params.set("word", keyword);
-                    if (notKeyword) params.set("notword", notKeyword);
+                    if (effectiveKeyword) params.set("word", effectiveKeyword);
+                    if (effectiveNotKeyword) params.set("notword", effectiveNotKeyword);
                     params.set("lim", String(perGenreLimit));
                     const res = await fetch(`/api/ranking?${params.toString()}`);
                     if (!res.ok) return [];
@@ -92,7 +96,8 @@ export default function RankingPage() {
                     return true;
                 });
 
-                setNovels(unique.slice(0, PER_PAGE));
+                // 複数ジャンル時は perGenreLimit により最大40件程度に収まるため全件セットする
+                setNovels(unique);
                 setTotalCount(unique.length);
                 setCurrentPage(1);
                 window.scrollTo({ top: 0, behavior: "smooth" });
@@ -107,6 +112,7 @@ export default function RankingPage() {
     useEffect(() => {
         fetchRanking(1);
     }, [period, selectedGenres]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     const handleKeywordSearch = (e: React.FormEvent) => {
         e.preventDefault();

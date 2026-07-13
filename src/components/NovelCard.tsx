@@ -144,9 +144,10 @@ interface NovelCardProps {
     onAuthorSearch?: (authorName: string) => void;
     onKeywordClick?: (keyword: string) => void;
     showRank?: boolean;
+    onFavoriteChange?: (ncode: string, isFav: boolean) => void;
 }
 
-export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch, onKeywordClick, showRank }: NovelCardProps) {
+export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch, onKeywordClick, showRank, onFavoriteChange }: NovelCardProps) {
     const [isFav, setIsFav] = useState(false);
     const [showScore, setShowScore] = useState(false);
     const [expanded, setExpanded] = useState(false);
@@ -161,8 +162,10 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
     }, [novel.ncode]);
 
     const toggleFavorite = () => {
+        const next = !isFav;
         if (isFav) { removeFavorite(novel.ncode); } else { addFavorite(novel); }
-        setIsFav(!isFav);
+        setIsFav(next);
+        onFavoriteChange?.(novel.ncode, next);
     };
 
     const handleSimilarSearch = () => {
@@ -210,7 +213,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-base sm:text-lg font-bold hover:text-primary-light transition-colors inline-flex items-start gap-2 group"
-                            style={{ fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.01em" }}
+                            style={{ letterSpacing: "0.01em" }}
                         >
                             <span className="line-clamp-2 sm:line-clamp-1">{novel.title}</span>
                             <ExternalLink className="w-4 h-4 opacity-50 sm:opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
@@ -272,7 +275,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                     <button
                         onClick={() => setStoryExpanded(true)}
                         className="text-[11px] mt-0.5 transition-colors"
-                        style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "'Noto Sans JP', sans-serif" }}
+                        style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", padding: 0 }}
                     >
                         続きを読む…
                     </button>
@@ -358,7 +361,7 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                 <button
                     onClick={() => setExpanded((v) => !v)}
                     className="flex items-center gap-1 text-xs transition-colors"
-                    style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif", letterSpacing: "0.02em", padding: "2px 0" }}
+                    style={{ color: "#7a7369", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.02em", padding: "2px 0" }}
                 >
                     {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     {expanded ? "詳細を閉じる" : "詳細を見る"}
@@ -425,7 +428,6 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                                                 color: "#4a5c84",
                                                 border: "1px solid rgba(26,39,68,0.10)",
                                                 cursor: onKeywordClick ? "pointer" : "default",
-                                                fontFamily: "'Noto Sans JP', sans-serif",
                                             }}
                                             title={onKeywordClick ? `「${kw}」で検索` : undefined}
                                         >
@@ -445,7 +447,6 @@ export default function NovelCard({ novel, rank, onSimilarSearch, onAuthorSearch
                                         color: "#1a2744",
                                         border: "1px solid rgba(26,39,68,0.12)",
                                         cursor: "pointer",
-                                        fontFamily: "'Noto Sans JP', sans-serif",
                                     }}
                                 >
                                     <Search className="w-3.5 h-3.5" />

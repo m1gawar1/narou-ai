@@ -257,6 +257,8 @@ function SearchPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [similarSourceTitle, setSimilarSourceTitle] = useState<string | null>(null);
+  // OR 検索のクライアント側マージ結果はページネーション不可
+  const [isMergedResult, setIsMergedResult] = useState(false);
 
   // URL共有
   const [shareCopied, setShareCopied] = useState(false);
@@ -296,6 +298,9 @@ function SearchPageInner() {
     setIsLoading(true);
     setError(null);
     setHasSearched(true);
+    setShowRandom(false);
+    setRandomNovels([]);
+    setIsMergedResult(false);
     try {
       const res = await fetch(`/api/search?${params.toString()}`);
       if (!res.ok) throw new Error("検索に失敗しました");
@@ -313,35 +318,52 @@ function SearchPageInner() {
   };
 
   const buildSearchParams = useCallback(
-    (page: number = 1) => {
+    (
+      page: number = 1,
+      overrides?: Partial<{
+        keyword: string;
+        tagKeyword: string;
+        notKeyword: string;
+        genre: string;
+        order: string;
+        minLen: string;
+        maxLen: string;
+        novelType: string;
+        readingTime: string;
+        lastUpdate: string;
+        excludeStop: boolean;
+      }>
+    ) => {
+      // overrides があれば現在の state より優先して使う（stale closure 回避）
+      const v = { keyword, tagKeyword, notKeyword, genre, order, minLen, maxLen, novelType, readingTime, lastUpdate, excludeStop, ...overrides };
       const params = new URLSearchParams();
       const allWords: string[] = [];
-      if (keyword.trim()) allWords.push(keyword.trim());
-      if (tagKeyword.trim()) allWords.push(tagKeyword.trim());
+      if (v.keyword.trim()) allWords.push(v.keyword.trim());
+      if (v.tagKeyword.trim()) allWords.push(v.tagKeyword.trim());
       if (allWords.length > 0) params.set("word", allWords.join(" "));
-      if (tagKeyword.trim() && !keyword.trim()) params.set("keyword", "1");
-      if (notKeyword.trim()) params.set("notword", notKeyword.trim());
-      if (genre) params.set("genre", genre);
-      params.set("order", order);
+      if (v.tagKeyword.trim() && !v.keyword.trim()) params.set("keyword", "1");
+      if (v.notKeyword.trim()) params.set("notword", v.notKeyword.trim());
+      if (v.genre) params.set("genre", v.genre);
+      params.set("order", v.order);
 
-      if (readingTime) {
-        const [rtMin, rtMax] = readingTime.split("-");
-        if (rtMin && !minLen) params.set("minlen", rtMin);
-        if (rtMax && !maxLen) params.set("maxlen", rtMax);
+      if (v.readingTime) {
+        const [rtMin, rtMax] = v.readingTime.split("-");
+        if (rtMin && !v.minLen) params.set("minlen", rtMin);
+        if (rtMax && !v.maxLen) params.set("maxlen", rtMax);
       } else {
-        if (minLen) params.set("minlen", minLen);
-        if (maxLen) params.set("maxlen", maxLen);
+        if (v.minLen) params.set("minlen", v.minLen);
+        if (v.maxLen) params.set("maxlen", v.maxLen);
       }
 
-      if (lastUpdate) {
-        const days = Number(lastUpdate);
+      if (v.lastUpdate) {
+        const days = Number(v.lastUpdate);
         const now = Math.floor(Date.now() / 1000);
         const since = now - days * 86400;
         params.set("lastup", `${since}-${now}`);
       }
 
-      if (novelType) params.set("type", novelType);
-      if (excludeStop) params.set("stop", "1");
+      if (v.novelType) params.set("type", v.novelType);
+      if (v.excludeStop) params.set("stop", "1");
       params.set("lim", String(PER_PAGE));
       if (page > 1) params.set("st", String((page - 1) * PER_PAGE + 1));
       return params;
@@ -350,13 +372,29 @@ function SearchPageInner() {
   );
 
   const doSearch = useCallback(
-    async (page: number = 1) => {
+    async (
+      page: number = 1,
+      overrides?: Partial<{
+        keyword: string;
+        tagKeyword: string;
+        notKeyword: string;
+        genre: string;
+        order: string;
+        minLen: string;
+        maxLen: string;
+        novelType: string;
+        readingTime: string;
+        lastUpdate: string;
+        excludeStop: boolean;
+      }>
+    ) => {
       setIsLoading(true);
       setError(null);
       setHasSearched(true);
       setShowRandom(false);
       setRandomNovels([]);
-      const params = buildSearchParams(page);
+      setIsMergedResult(false);
+      const params = buildSearchParams(page, overrides);
 
       try {
         const res = await fetch(`/api/search?${params.toString()}`);
