@@ -1,6 +1,7 @@
 # 修正・改善計画（コードレビュー結果）
 
 作成日: 2026-07-06
+実施日: 2026-07-13 — **バグ 1〜8 すべて修正済み**。改善点は下記の注記どおり（インラインstyle全面移行とタッチターゲット44px対応のみ意図的に見送り）。ビルド・型チェック・APIスモークテスト通過済み。
 
 ## 修正点（バグ）
 
@@ -47,15 +48,15 @@
 
 ## 改善点
 
-- **未使用依存の削除**: `recharts`・`clsx`・`tailwind-merge` はどこからも import されていない
-- **フォントを `next/font` に移行**: `<head>` 直書きの `<link>` を `next/font/google` の `Noto_Sans_JP` に。各所の `style={{ fontFamily: ... }}` の重複指定も不要になる
-- **なろうAPIレスポンスのキャッシュ**: サーバー側 fetch に `next: { revalidate: 300 }` 等を付与。`gzip=5` の利用も検討（なろうAPIは負荷軽減を利用者に要請）
-- **インラインstyleとTailwindの混在解消**: `page.tsx` のガチャ・検索バー周りの巨大なインラインstyleを Tailwind クラスか globals.css に寄せる
+- ✅ **未使用依存の削除**: `recharts`・`clsx`・`tailwind-merge` を package.json と lockfile から削除済み
+- ✅ **フォントを `next/font` に移行**: `next/font/google` の `Noto_Sans_JP`（`--font-noto-sans-jp` 変数）に移行。全コンポーネントの冗長な inline `fontFamily` 指定も削除済み
+- ✅ **なろうAPIレスポンスのキャッシュ**: `next: { revalidate: 300 }` を付与済み（`gzip=5` は解凍処理の複雑さに見合わないため見送り）
+- ⏸ **インラインstyleとTailwindの混在解消**: fontFamily の掃除のみ実施。全面的な Tailwind 移行は視覚的リグレッションのリスクが高く、機能修正と切り離すべきなので**意図的に見送り**（別タスクで実施推奨）
 - **モバイルUX**:
-  - タグクラウドの複数選択が「右クリック」なのでスマホで使えない（長押し or 常時トグル式に）
-  - ジャンルチップ等のタッチターゲットが44px未満の箇所が多い（WCAG基準）
-- **`(params as any).ncode` の型ハック解消**: `SearchParams` に `ncode?: string` を追加（`src/lib/narou.ts:197`, `src/app/api/search/route.ts:13`）
-- **README がテンプレートのまま**: アプリ概要・起動方法・使用APIを記載する
+  - ✅ タグクラウドの複数選択: 右クリック廃止、タップで常時トグル方式に変更済み
+  - ⏸ タッチターゲット44px対応: デザイン全体に波及するため見送り（別タスク推奨）
+- ✅ **`(params as any).ncode` の型ハック解消**: `SearchParams` に `ncode?: string` を追加済み
+- ✅ **README がテンプレートのまま**: 日本語で全面書き換え済み
 
 ## 追加機能の提案
 

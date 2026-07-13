@@ -127,14 +127,6 @@ function TagCloud({ novels, onTagSearch }: {
     onTagSearch(selectedTags, searchMode);
   };
 
-  const handleSingleClick = (tag: string) => {
-    if (selectedTags.length === 0) {
-      onTagSearch([tag], "and");
-    } else {
-      toggleTag(tag);
-    }
-  };
-
   return (
     <div className="glass rounded-xl p-4 mb-6">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -192,14 +184,13 @@ function TagCloud({ novels, onTagSearch }: {
           return (
             <button
               key={tag}
-              onClick={() => handleSingleClick(tag)}
-              onContextMenu={(e) => { e.preventDefault(); toggleTag(tag); }}
+              onClick={() => toggleTag(tag)}
               className={`px-2 py-0.5 rounded-full border transition-all cursor-pointer ${isSelected
                 ? "bg-primary/20 border-primary/40 text-primary-light ring-1 ring-primary/30"
                 : "bg-primary/5 border-primary/10 text-primary-light hover:bg-primary/15 hover:border-primary/25"
                 }`}
               style={{ fontSize: `${getSize(count)}px` }}
-              title={`${tag}（${count}件）/ 右クリックで複数選択`}
+              title={`${tag}（${count}件）`}
             >
               {isSelected && <span className="mr-0.5">✓</span>}
               {tag}
@@ -210,7 +201,7 @@ function TagCloud({ novels, onTagSearch }: {
       </div>
       {selectedTags.length === 0 && (
         <p className="text-[10px] text-muted/50 text-center mt-2">
-          クリックで即検索 / 右クリックで複数選択してAND・OR検索
+          タグをタップして選択し、AND / OR を切り替えて検索
         </p>
       )}
     </div>
@@ -275,23 +266,75 @@ function SearchPageInner() {
     [novelType, readingTime, lastUpdate, notKeyword, tagKeyword, minLen, maxLen].filter(Boolean).length +
     (excludeStop ? 1 : 0);
 
-  // URLパラメータから検索条件を復元
+  // URLパラメータから検索条件を復元（マウント時1回）
   useEffect(() => {
-    const wordParam = searchParams.get("word");
-    const genreParam = searchParams.get("genre");
-    if (wordParam || genreParam) {
-      if (wordParam) setKeyword(wordParam);
-      if (genreParam) setGenre(genreParam);
-      setTimeout(() => {
-        const params = new URLSearchParams();
-        if (wordParam) params.set("word", wordParam);
-        if (genreParam) params.set("genre", genreParam);
-        params.set("order", "hyoka");
-        params.set("lim", String(PER_PAGE));
-        fetchWithParams(params);
-      }, 100);
-    }
     setPresets(getPresets());
+
+    const wordParam = searchParams.get("word");
+    const wnameParam = searchParams.get("wname");
+    const genreParam = searchParams.get("genre");
+    const tagkwParam = searchParams.get("tagkw");
+    const notwordParam = searchParams.get("notword");
+    const orderParam = searchParams.get("order");
+    const minlenParam = searchParams.get("minlen");
+    const maxlenParam = searchParams.get("maxlen");
+    const typeParam = searchParams.get("type");
+    const rtParam = searchParams.get("rt");
+    const luParam = searchParams.get("lu");
+    const stopParam = searchParams.get("stop");
+
+    // ランキング/お気に入りページからの作者検索遷移は従来どおり word+wname 検索
+    if (wnameParam === "1" && wordParam) {
+      setKeyword(wordParam);
+      const params = new URLSearchParams();
+      params.set("word", wordParam);
+      params.set("wname", "1");
+      params.set("order", orderParam || order);
+      params.set("lim", String(PER_PAGE));
+      fetchWithParams(params);
+      return;
+    }
+
+    // 共有された UI パラメータのいずれかが存在する場合のみ復元
+    const hasAny =
+      wordParam || genreParam || tagkwParam || notwordParam || orderParam ||
+      minlenParam || maxlenParam || typeParam || rtParam || luParam || stopParam;
+    if (!hasAny) return;
+
+    // 各 state を復元
+    if (wordParam) setKeyword(wordParam);
+    if (genreParam) setGenre(genreParam);
+    if (tagkwParam) setTagKeyword(tagkwParam);
+    if (notwordParam) setNotKeyword(notwordParam);
+    if (orderParam) setOrder(orderParam);
+    if (minlenParam) setMinLen(minlenParam);
+    if (maxlenParam) setMaxLen(maxlenParam);
+    if (typeParam) setNovelType(typeParam);
+    if (rtParam) setReadingTime(rtParam);
+    if (luParam) setLastUpdate(luParam);
+    const excludeStopVal = stopParam === "1";
+    if (excludeStopVal) setExcludeStop(true);
+
+    // 詳細フィルターが復元されたらパネルを開く
+    if (tagkwParam || notwordParam || minlenParam || maxlenParam || typeParam || rtParam || luParam || stopParam) {
+      setShowAdvanced(true);
+    }
+
+    // 復元した値で検索を実行（lastUpdate は日数なので doSearch 内で lastup 範囲を再計算）
+    doSearch(1, {
+      keyword: wordParam || "",
+      genre: genreParam || "",
+      tagKeyword: tagkwParam || "",
+      notKeyword: notwordParam || "",
+      order: orderParam || order,
+      minLen: minlenParam || "",
+      maxLen: maxlenParam || "",
+      novelType: typeParam || "",
+      readingTime: rtParam || "",
+      lastUpdate: luParam || "",
+      excludeStop: excludeStopVal,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchWithParams = async (params: URLSearchParams) => {
@@ -429,6 +472,7 @@ function SearchPageInner() {
     setCurrentPage(1); setHasSearched(false); setError(null);
     setRandomNovels([]); setShowRandom(false);
     setSimilarSourceTitle(null);
+    setIsMergedResult(false);
     router.replace("/", { scroll: false });
   };
 
@@ -510,7 +554,7 @@ function SearchPageInner() {
     setKeyword(keywords);
     setGenre(String(genreCode));
     setSimilarSourceTitle(title);
-    setTimeout(() => doSearch(1), 0);
+    doSearch(1, { keyword: keywords, genre: String(genreCode) });
   };
 
   const handleAuthorSearch = (authorName: string) => {
@@ -525,7 +569,19 @@ function SearchPageInner() {
   };
 
   const handleShareSearch = async () => {
-    const params = buildSearchParams();
+    // UI state から共有 URL を組み立てる（API パラメータではなく UI レベルで共有）
+    const params = new URLSearchParams();
+    if (keyword.trim()) params.set("word", keyword.trim());
+    if (tagKeyword.trim()) params.set("tagkw", tagKeyword.trim());
+    if (notKeyword.trim()) params.set("notword", notKeyword.trim());
+    if (genre) params.set("genre", genre);
+    if (order) params.set("order", order);
+    if (minLen) params.set("minlen", minLen);
+    if (maxLen) params.set("maxlen", maxLen);
+    if (novelType) params.set("type", novelType);
+    if (readingTime) params.set("rt", readingTime);
+    if (lastUpdate) params.set("lu", lastUpdate);
+    if (excludeStop) params.set("stop", "1");
     const shareUrl = `${window.location.origin}/?${params.toString()}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -543,10 +599,58 @@ function SearchPageInner() {
     }
   };
 
-  const handleTagSearch = (tags: string[], mode: "and" | "or") => {
-    setKeyword(tags.join(" "));
+  const handleTagSearch = async (tags: string[], mode: "and" | "or") => {
     setSimilarSourceTitle(null);
-    setTimeout(() => doSearch(1), 0);
+
+    // OR 検索: なろう API は OR 非対応なのでクライアント側でマージする
+    if (mode === "or" && tags.length > 1) {
+      setIsLoading(true);
+      setError(null);
+      setHasSearched(true);
+      setShowRandom(false);
+      setRandomNovels([]);
+      try {
+        const results = await Promise.all(
+          tags.map(async (tag) => {
+            const params = new URLSearchParams();
+            params.set("word", tag);
+            params.set("order", order);
+            if (genre) params.set("genre", genre);
+            params.set("lim", "20");
+            const res = await fetch(`/api/search?${params.toString()}`);
+            if (!res.ok) throw new Error("検索に失敗しました");
+            const data = await res.json();
+            return (data.novels || []) as NarouNovel[];
+          })
+        );
+        // flat → ncode で重複除去 → global_point 降順ソート
+        const seen = new Set<string>();
+        const merged = results
+          .flat()
+          .filter((n) => {
+            if (seen.has(n.ncode)) return false;
+            seen.add(n.ncode);
+            return true;
+          })
+          .sort((a, b) => (b.global_point || 0) - (a.global_point || 0));
+        setNovels(merged);
+        setTotalCount(merged.length);
+        setCurrentPage(1);
+        setIsMergedResult(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "エラーが発生しました");
+        setNovels([]);
+        setTotalCount(0);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // AND 検索: キーワードをスペース連結して通常検索
+    setKeyword(tags.join(" "));
+    doSearch(1, { keyword: tags.join(" ") });
   };
 
   const handleKeywordClick = (kw: string) => handleTagSearch([kw], "and");
@@ -616,7 +720,6 @@ function SearchPageInner() {
                   fontSize: 12,
                   fontWeight: gachaCount === n ? 700 : 400,
                   cursor: "pointer",
-                  fontFamily: "'Noto Sans JP', sans-serif",
                   letterSpacing: "0.04em",
                   transition: "all 0.15s",
                 }}
@@ -641,7 +744,6 @@ function SearchPageInner() {
                 letterSpacing: "0.06em",
                 boxShadow: "0 4px 16px rgba(184,136,58,0.35)",
                 minWidth: 140,
-                fontFamily: "'Noto Sans JP', sans-serif",
               }}
             >
               {isRandomLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Dices className="w-5 h-5" />}
@@ -662,7 +764,6 @@ function SearchPageInner() {
                 fontSize: 13,
                 letterSpacing: "0.04em",
                 cursor: "pointer",
-                fontFamily: "'Noto Sans JP', sans-serif",
                 whiteSpace: "nowrap",
               }}
             >
@@ -704,7 +805,6 @@ function SearchPageInner() {
                   outline: "none",
                   background: "transparent",
                   fontSize: 16,
-                  fontFamily: "'Noto Sans JP', sans-serif",
                   color: "#18150f",
                   padding: "10px 0",
                 }}
@@ -731,7 +831,6 @@ function SearchPageInner() {
                   fontSize: 14,
                   letterSpacing: "0.04em",
                   cursor: isLoading ? "not-allowed" : "pointer",
-                  fontFamily: "'Noto Sans JP', sans-serif",
                   opacity: isLoading ? 0.6 : 1,
                   flexShrink: 0,
                   display: "flex",
@@ -759,7 +858,6 @@ function SearchPageInner() {
                 fontSize: 12,
                 fontWeight: genre === "" ? 600 : 400,
                 cursor: "pointer",
-                fontFamily: "'Noto Sans JP', sans-serif",
                 letterSpacing: "0.03em",
                 transition: "all 0.15s",
                 whiteSpace: "nowrap",
@@ -782,7 +880,6 @@ function SearchPageInner() {
                   fontSize: 12,
                   fontWeight: genre === g.value ? 600 : 400,
                   cursor: "pointer",
-                  fontFamily: "'Noto Sans JP', sans-serif",
                   letterSpacing: "0.03em",
                   transition: "all 0.15s",
                   whiteSpace: "nowrap",
@@ -812,7 +909,6 @@ function SearchPageInner() {
                   fontSize: 11,
                   fontWeight: order === o.value ? 600 : 400,
                   cursor: "pointer",
-                  fontFamily: "'Noto Sans JP', sans-serif",
                   letterSpacing: "0.02em",
                   transition: "all 0.15s",
                 }}
@@ -836,7 +932,6 @@ function SearchPageInner() {
                 fontSize: 11,
                 fontWeight: 500,
                 cursor: "pointer",
-                fontFamily: "'Noto Sans JP', sans-serif",
                 letterSpacing: "0.02em",
                 flexShrink: 0,
               }}
@@ -1163,8 +1258,8 @@ function SearchPageInner() {
               </div>
             )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
+            {/* Pagination（OR マージ結果はページネーション不可） */}
+            {totalPages > 1 && !isMergedResult && (
               <nav className="flex items-center justify-center gap-2 mt-8 mb-4 flex-wrap">
                 <button className="page-btn" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>
                   <ChevronLeft className="w-4 h-4" />
@@ -1208,7 +1303,7 @@ function SearchPageInner() {
               {["異世界転生", "悪役令嬢", "追放", "スローライフ", "最強主人公"].map((tag) => (
                 <button
                   key={tag}
-                  onClick={() => { setKeyword(tag); setTimeout(() => doSearch(1), 0); }}
+                  onClick={() => { setKeyword(tag); doSearch(1, { keyword: tag }); }}
                   className="tag-chip text-sm py-1.5 px-4 cursor-pointer hover:bg-primary/20 hover:border-primary/30 transition-all"
                 >
                   {tag}

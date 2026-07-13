@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# なろう小説ファインダー
 
-## Getting Started
+「小説家になろう」の作品を検索・ランキング表示できる Next.js 製の Web アプリです。
 
-First, run the development server:
+## 主な機能
+
+- キーワード・ジャンル・文字数・読了時間による作品検索
+- ガチャ的ランダム作品推薦
+- 期間別（日間・週間・月間・四半期・年間 など）ランキング表示
+- お気に入り保存、更新チェック、JSON 形式でのインポート／エクスポート
+- 検索条件のプリセット保存
+- PWA 対応（ホーム画面への追加、オフライン起動）
+
+データはすべてブラウザの localStorage に保存されます。サーバー側の DB は使用していません。
+
+## 起動方法
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+[http://localhost:3000](http://localhost:3000) をブラウザで開いてください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 使用 API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+作品データの取得には「なろう小説 API」を利用しています。
 
-## Learn More
+- [なろう小説 API 仕様書](https://dev.syosetu.com/man/api/)
 
-To learn more about Next.js, take a look at the following resources:
+## 技術スタック
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16
+- React 19
+- Tailwind CSS v4
+- TypeScript

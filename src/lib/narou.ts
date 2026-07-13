@@ -51,6 +51,7 @@ export interface SearchParams {
   ex?: 1;
   keyword?: 1;
   wname?: 1;
+  ncode?: string;
 }
 
 export const ORDER_OPTIONS: { value: string; label: string }[] = [
@@ -194,7 +195,7 @@ export async function fetchNarouNovels(
     ex: params.ex,
     keyword: params.keyword,
     wname: params.wname,
-    ncode: (params as any).ncode,
+    ncode: params.ncode,
   };
 
   Object.entries(paramMap).forEach(([key, value]) => {
@@ -203,23 +204,20 @@ export async function fetchNarouNovels(
     }
   });
 
-  try {
-    const response = await fetch(url.toString(), {
-      headers: {
-        "User-Agent": "NarouNovelFinder/1.0",
-      },
-    });
+  const response = await fetch(url.toString(), {
+    headers: {
+      "User-Agent": "NarouNovelFinder/1.0",
+    },
+    // なろうAPIへの負荷軽減のためサーバー側で5分間キャッシュする
+    next: { revalidate: 300 },
+  });
 
-    if (!response.ok) {
-      throw new Error(`Narou API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const allcount = data[0]?.allcount ?? 0;
-    const novels = data.slice(1) as NarouNovel[];
-    return { allcount, novels };
-  } catch (error) {
-    console.error("Failed to fetch from Narou API:", error);
-    return { allcount: 0, novels: [] };
+  if (!response.ok) {
+    throw new Error(`Narou API error: ${response.statusText}`);
   }
+
+  const data = await response.json();
+  const allcount = data[0]?.allcount ?? 0;
+  const novels = data.slice(1) as NarouNovel[];
+  return { allcount, novels };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Heart, RefreshCw, Loader2, Bell, BellOff, Download, Upload } from "lucide-react";
-import { getFavorites, removeFavorite, type FavoriteNovel } from "@/lib/favorites";
+import { getFavorites, type FavoriteNovel } from "@/lib/favorites";
 import { type NarouNovel } from "@/lib/narou";
 import NovelCard from "@/components/NovelCard";
 import { useRouter } from "next/navigation";
@@ -29,11 +29,6 @@ export default function FavoritesPage() {
         const saved = localStorage.getItem("narou-finder-last-update-check");
         if (saved) setLastChecked(saved);
     }, []);
-
-    const handleRemove = (ncode: string) => {
-        removeFavorite(ncode);
-        setFavorites(getFavorites());
-    };
 
     const handleSimilarSearch = (keywords: string, genreCode: number) => {
         const params = new URLSearchParams({ word: keywords, genre: String(genreCode) });
@@ -237,7 +232,7 @@ export default function FavoritesPage() {
                                                 className="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-all"
                                             >
                                                 📗 {fav?.title?.slice(0, 20) || u.ncode}
-                                                {u.newEpisodes && u.newEpisodes > 0 && (
+                                                {(u.newEpisodes ?? 0) > 0 && (
                                                     <span className="ml-1 font-bold">+{u.newEpisodes}話</span>
                                                 )}
                                             </a>
@@ -283,6 +278,7 @@ export default function FavoritesPage() {
                                         novel={toNarouNovel(fav)}
                                         onSimilarSearch={handleSimilarSearch}
                                         onAuthorSearch={handleAuthorSearch}
+                                        onFavoriteChange={() => setFavorites(getFavorites())}
                                     />
                                 </div>
                             );

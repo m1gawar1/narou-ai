@@ -112,7 +112,6 @@ export default function RankingPage() {
     useEffect(() => {
         fetchRanking(1);
     }, [period, selectedGenres]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     const handleKeywordSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -122,11 +121,9 @@ export default function RankingPage() {
     const handleClear = () => {
         setKeyword("");
         setNotKeyword("");
+        // state 更新は非同期のため、明示的に空文字を渡して正しく空検索する
+        fetchRanking(1, "", "");
     };
-
-    useEffect(() => {
-        if (keyword === "" && notKeyword === "") fetchRanking(1);
-    }, [keyword, notKeyword]);
 
     const toggleGenre = (genreId: number) => {
         setSelectedGenres((prev) =>
@@ -314,12 +311,20 @@ export default function RankingPage() {
                 {!isLoading && novels.length > 0 && (
                     <>
                         <div className="flex items-center justify-between mb-4">
-                            <p className="text-sm text-muted">
-                                全 {totalCount.toLocaleString()} 作品
-                            </p>
-                            <p className="text-sm text-muted">
-                                {((currentPage - 1) * PER_PAGE + 1).toLocaleString()} - {Math.min(currentPage * PER_PAGE, totalCount).toLocaleString()} 位
-                            </p>
+                            {selectedGenres.length > 1 ? (
+                                <p className="text-sm text-muted">
+                                    クロスジャンル上位 {novels.length.toLocaleString()} 作品
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-muted">
+                                        全 {totalCount.toLocaleString()} 作品
+                                    </p>
+                                    <p className="text-sm text-muted">
+                                        {((currentPage - 1) * PER_PAGE + 1).toLocaleString()} - {Math.min(currentPage * PER_PAGE, totalCount).toLocaleString()} 位
+                                    </p>
+                                </>
+                            )}
                         </div>
                         <div className="space-y-4 mb-8">
                             {novels.map((novel, index) => (
@@ -334,8 +339,8 @@ export default function RankingPage() {
                             ))}
                         </div>
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
+                        {/* Pagination（複数ジャンル選択時はマージ結果のみのため非表示） */}
+                        {totalPages > 1 && selectedGenres.length <= 1 && (
                             <nav className="flex items-center justify-center gap-2 mt-8 mb-4 flex-wrap">
                                 <button className="page-btn" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1}>
                                     <ChevronLeft className="w-4 h-4" />

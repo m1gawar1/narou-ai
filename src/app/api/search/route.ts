@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     if (word) params.word = word;
 
     const ncode = searchParams.get("ncode");
-    if (ncode) (params as any).ncode = ncode;
+    if (ncode) params.ncode = ncode;
 
     const notword = searchParams.get("notword");
     if (notword) params.notword = notword;
