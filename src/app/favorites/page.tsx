@@ -202,6 +202,41 @@ export default function FavoritesPage() {
         general_firstup: "",
     });
 
+    // ステータス別の件数（タブのバッジ表示用）
+    const statusCounts = useMemo(() => {
+        const counts: Record<ReadStatus | "all", number> = { all: favorites.length, unread: 0, reading: 0, finished: 0 };
+        for (const fav of favorites) {
+            const status = fav.readStatus ?? "unread";
+            counts[status] += 1;
+        }
+        return counts;
+    }, [favorites]);
+
+    // フィルター＆ソート適用後のリスト
+    const visibleFavorites = useMemo(() => {
+        let list = favorites;
+        if (statusFilter !== "all") {
+            list = list.filter((f) => (f.readStatus ?? "unread") === statusFilter);
+        }
+        list = [...list];
+        switch (sortOrder) {
+            case "addedAsc":
+                list.sort((a, b) => a.addedAt - b.addedAt);
+                break;
+            case "updatedDesc":
+                list.sort((a, b) => (b.general_lastup || "").localeCompare(a.general_lastup || ""));
+                break;
+            case "titleAsc":
+                list.sort((a, b) => a.title.localeCompare(b.title, "ja"));
+                break;
+            case "addedDesc":
+            default:
+                list.sort((a, b) => b.addedAt - a.addedAt);
+                break;
+        }
+        return list;
+    }, [favorites, statusFilter, sortOrder]);
+
     if (!loaded) return null;
 
     const updatedCount = Object.values(updateInfos).filter((u) => u.hasUpdate).length;
@@ -272,27 +307,49 @@ export default function FavoritesPage() {
                             )}
                         </div>
                         {updatedCount > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {Object.values(updateInfos)
-                                    .filter((u) => u.hasUpdate)
-                                    .map((u) => {
-                                        const fav = favorites.find((f) => f.ncode === u.ncode);
-                                        return (
-                                            <a
-                                                key={u.ncode}
-                                                href={`https://ncode.syosetu.com/${u.ncode.toLowerCase()}/`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20 transition-all"
-                                            >
-                                                📗 {fav?.title?.slice(0, 20) || u.ncode}
-                                                {(u.newEpisodes ?? 0) > 0 && (
-                                                    <span className="ml-1 font-bold">+{u.newEpisodes}話</span>
-                                                )}
-                                            </a>
-                                        );
-                                    })}
-                            </div>
+                            <>
+                                <div className="flex justify-end mb-2">
+                                    <button
+                                        onClick={markAllAsRead}
+                                        className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-white/5 text-muted hover:text-foreground hover:bg-white/10 border border-border transition-all"
+                                    >
+                                        <Check className="w-3 h-3" />
+                                        すべて既読にする
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {Object.values(updateInfos)
+                                        .filter((u) => u.hasUpdate)
+                                        .map((u) => {
+                                            const fav = favorites.find((f) => f.ncode === u.ncode);
+                                            return (
+                                                <span
+                                                    key={u.ncode}
+                                                    className="inline-flex items-center gap-1 text-xs pl-3 pr-1.5 py-1.5 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20"
+                                                >
+                                                    <a
+                                                        href={`https://ncode.syosetu.com/${u.ncode.toLowerCase()}/`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="hover:underline"
+                                                    >
+                                                        📗 {fav?.title?.slice(0, 20) || u.ncode}
+                                                        {(u.newEpisodes ?? 0) > 0 && (
+                                                            <span className="ml-1 font-bold">+{u.newEpisodes}話</span>
+                                                        )}
+                                                    </a>
+                                                    <button
+                                                        onClick={() => markAsRead(u.ncode)}
+                                                        className="ml-1 px-1.5 py-0.5 rounded bg-green-500/10 hover:bg-green-500/25 transition-all"
+                                                        title="この作品を既読にする"
+                                                    >
+                                                        ✓既読
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
+                                </div>
+                            </>
                         )}
                     </div>
                 )}
@@ -316,11 +373,46 @@ export default function FavoritesPage() {
                     </div>
                 )}
 
+                {/* Status Filter Tabs & Sort */}
+                {favorites.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                        <div className="flex flex-wrap gap-2">
+                            {STATUS_TABS.map((tab) => (
+                                <button
+                                    key={tab.value}
+                                    onClick={() => setStatusFilter(tab.value)}
+                                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${statusFilter === tab.value
+                                        ? "text-white"
+                                        : "text-muted hover:text-foreground bg-white/5 border border-border"
+                                        }`}
+                                    style={statusFilter === tab.value ? { background: "#1a2744" } : undefined}
+                                >
+                                    {tab.label}
+                                    <span className="ml-1.5 text-xs opacity-70">
+                                        {statusCounts[tab.value]}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                        <select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                            className="form-input w-auto"
+                        >
+                            <option value="addedDesc">追加日（新しい順）</option>
+                            <option value="addedAsc">追加日（古い順）</option>
+                            <option value="updatedDesc">更新日（新しい順）</option>
+                            <option value="titleAsc">タイトル順</option>
+                        </select>
+                    </div>
+                )}
+
                 {/* Favorites list */}
                 {favorites.length > 0 && (
                     <div className="space-y-4">
-                        {favorites.map((fav) => {
+                        {visibleFavorites.map((fav) => {
                             const info = updateInfos[fav.ncode];
+                            const currentStatus: ReadStatus = fav.readStatus ?? "unread";
                             return (
                                 <div key={fav.ncode} className="relative">
                                     {info?.hasUpdate && (
@@ -328,6 +420,34 @@ export default function FavoritesPage() {
                                             更新あり{info.newEpisodes && info.newEpisodes > 0 ? ` +${info.newEpisodes}話` : ""}
                                         </div>
                                     )}
+                                    {/* ステータス切替セグメントボタン */}
+                                    <div className="flex gap-1.5 mb-1.5">
+                                        {(
+                                            [
+                                                { value: "unread" as ReadStatus, label: "積読" },
+                                                { value: "reading" as ReadStatus, label: "読書中" },
+                                                { value: "finished" as ReadStatus, label: "読了" },
+                                            ]
+                                        ).map((s) => {
+                                            const isActive = currentStatus === s.value;
+                                            const activeStyle =
+                                                s.value === "unread"
+                                                    ? { background: "rgba(120,120,120,0.18)", color: "#9a9a9a", border: "1px solid rgba(120,120,120,0.3)" }
+                                                    : s.value === "reading"
+                                                        ? { background: "rgba(26,39,68,0.15)", color: "#1a2744", border: "1px solid rgba(26,39,68,0.3)" }
+                                                        : { background: "rgba(184,136,58,0.15)", color: "#b8883a", border: "1px solid rgba(184,136,58,0.3)" };
+                                            return (
+                                                <button
+                                                    key={s.value}
+                                                    onClick={() => handleStatusChange(fav.ncode, s.value)}
+                                                    className="text-xs px-2.5 py-1 rounded-md transition-all"
+                                                    style={isActive ? activeStyle : { background: "transparent", color: "#9a9a9a", border: "1px solid rgba(120,120,120,0.2)" }}
+                                                >
+                                                    {s.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                     <NovelCard
                                         novel={toNarouNovel(fav)}
                                         onSimilarSearch={handleSimilarSearch}
