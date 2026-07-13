@@ -857,6 +857,8 @@ function SearchPageInner() {
                 placeholder="キーワードで検索..."
                 style={{
                   flex: 1,
+                  // スマホ幅で input が固有幅より縮まず検索ボタンを押し出すのを防ぐ
+                  minWidth: 0,
                   border: "none",
                   outline: "none",
                   background: "transparent",
