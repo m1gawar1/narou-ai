@@ -220,7 +220,8 @@ function SearchPageInner() {
   const [keyword, setKeyword] = useState("");
   const [tagKeyword, setTagKeyword] = useState("");
   const [notKeyword, setNotKeyword] = useState("");
-  const [genre, setGenre] = useState("");
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [showGenrePicker, setShowGenrePicker] = useState(false);
   const [order, setOrder] = useState("hyoka");
   const [minLen, setMinLen] = useState("");
   const [maxLen, setMaxLen] = useState("");
@@ -262,10 +263,12 @@ function SearchPageInner() {
 
   const totalPages = Math.ceil(Math.min(totalCount, 2000) / PER_PAGE);
 
-  // ジャンルチップ用フラット配列
-  const flatGenres = GENRE_GROUPS.flatMap((g) =>
-    g.genres.map((genre) => ({ value: String(genre.value), label: genre.label, group: g.label }))
-  );
+  // 選択中ジャンルのトグル
+  const toggleGenre = (value: string) => {
+    setSelectedGenres((prev) =>
+      prev.includes(value) ? prev.filter((g) => g !== value) : [...prev, value]
+    );
+  };
 
   // 有効な詳細フィルター数
   const activeAdvancedCount =
@@ -310,7 +313,7 @@ function SearchPageInner() {
 
     // 各 state を復元
     if (wordParam) setKeyword(wordParam);
-    if (genreParam) setGenre(genreParam);
+    if (genreParam) setSelectedGenres(genreParam.split("-"));
     if (tagkwParam) setTagKeyword(tagkwParam);
     if (notwordParam) setNotKeyword(notwordParam);
     if (orderParam) setOrder(orderParam);
@@ -385,7 +388,7 @@ function SearchPageInner() {
       }>
     ) => {
       // overrides があれば現在の state より優先して使う（stale closure 回避）
-      const v = { keyword, tagKeyword, notKeyword, genre, order, minLen, maxLen, novelType, readingTime, lastUpdate, excludeStop, ...overrides };
+      const v = { keyword, tagKeyword, notKeyword, genre: selectedGenres.join("-"), order, minLen, maxLen, novelType, readingTime, lastUpdate, excludeStop, ...overrides };
       const params = new URLSearchParams();
       const allWords: string[] = [];
       if (v.keyword.trim()) allWords.push(v.keyword.trim());
@@ -418,7 +421,7 @@ function SearchPageInner() {
       if (page > 1) params.set("st", String((page - 1) * PER_PAGE + 1));
       return params;
     },
-    [keyword, tagKeyword, notKeyword, genre, order, minLen, maxLen, novelType, readingTime, lastUpdate, excludeStop]
+    [keyword, tagKeyword, notKeyword, selectedGenres, order, minLen, maxLen, novelType, readingTime, lastUpdate, excludeStop]
   );
 
   const doSearch = useCallback(
@@ -522,7 +525,7 @@ function SearchPageInner() {
 
   const handleReset = () => {
     setKeyword(""); setTagKeyword(""); setNotKeyword("");
-    setGenre(""); setOrder("hyoka"); setMinLen(""); setMaxLen(""); setNovelType("");
+    setSelectedGenres([]); setShowGenrePicker(false); setOrder("hyoka"); setMinLen(""); setMaxLen(""); setNovelType("");
     setReadingTime(""); setLastUpdate(""); setExcludeStop(false);
     setShowAdvanced(false); setNovels([]); setTotalCount(0);
     setCurrentPage(1); setHasSearched(false); setError(null);
@@ -536,7 +539,7 @@ function SearchPageInner() {
     if (!presetName.trim()) return;
     savePreset({
       name: presetName.trim(),
-      keyword, tagKeyword, notKeyword, genre, order, minLen, maxLen, novelType,
+      keyword, tagKeyword, notKeyword, genre: selectedGenres.join("-"), order, minLen, maxLen, novelType,
     });
     setPresets(getPresets());
     setPresetName("");
@@ -547,7 +550,7 @@ function SearchPageInner() {
     setKeyword(preset.keyword);
     setTagKeyword(preset.tagKeyword);
     setNotKeyword(preset.notKeyword);
-    setGenre(preset.genre);
+    setSelectedGenres(preset.genre ? preset.genre.split("-") : []);
     setOrder(preset.order);
     setMinLen(preset.minLen);
     setMaxLen(preset.maxLen || "");
@@ -571,7 +574,7 @@ function SearchPageInner() {
     setNovels([]);
     try {
       const countParams = new URLSearchParams();
-      if (genre) countParams.set("genre", genre);
+      if (selectedGenres.length > 0) countParams.set("genre", selectedGenres.join("-"));
       if (novelType) countParams.set("type", novelType);
       if (minLen) countParams.set("minlen", minLen);
       countParams.set("lim", "1");
@@ -589,7 +592,7 @@ function SearchPageInner() {
       const maxOffset = Math.max(1, total - count + 1);
       const randomOffset = Math.floor(Math.random() * maxOffset) + 1;
       const params = new URLSearchParams();
-      if (genre) params.set("genre", genre);
+      if (selectedGenres.length > 0) params.set("genre", selectedGenres.join("-"));
       if (novelType) params.set("type", novelType);
       if (minLen) params.set("minlen", minLen);
       params.set("order", "hyoka");
@@ -608,7 +611,7 @@ function SearchPageInner() {
 
   const handleSimilarSearch = (keywords: string, genreCode: number, title: string) => {
     setKeyword(keywords);
-    setGenre(String(genreCode));
+    setSelectedGenres([String(genreCode)]);
     setSimilarSourceTitle(title);
     doSearch(1, { keyword: keywords, genre: String(genreCode) });
   };
@@ -630,7 +633,7 @@ function SearchPageInner() {
     if (keyword.trim()) params.set("word", keyword.trim());
     if (tagKeyword.trim()) params.set("tagkw", tagKeyword.trim());
     if (notKeyword.trim()) params.set("notword", notKeyword.trim());
-    if (genre) params.set("genre", genre);
+    if (selectedGenres.length > 0) params.set("genre", selectedGenres.join("-"));
     if (order) params.set("order", order);
     if (minLen) params.set("minlen", minLen);
     if (maxLen) params.set("maxlen", maxLen);
@@ -671,7 +674,7 @@ function SearchPageInner() {
             const params = new URLSearchParams();
             params.set("word", tag);
             params.set("order", order);
-            if (genre) params.set("genre", genre);
+            if (selectedGenres.length > 0) params.set("genre", selectedGenres.join("-"));
             params.set("lim", "20");
             const res = await fetch(`/api/search?${params.toString()}`);
             if (!res.ok) throw new Error("検索に失敗しました");
@@ -900,53 +903,68 @@ function SearchPageInner() {
             </div>
           </form>
 
-          {/* Genre chips — horizontal scroll */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 mb-3" style={{ scrollbarWidth: "none" }}>
-            {/* すべて */}
-            <button
-              type="button"
-              onClick={() => setGenre("")}
-              style={{
-                flexShrink: 0,
-                padding: "6px 14px",
-                borderRadius: 20,
-                border: `1px solid ${genre === "" ? "#1a2744" : "rgba(24,21,15,0.12)"}`,
-                background: genre === "" ? "#1a2744" : "rgba(252,249,243,0.85)",
-                color: genre === "" ? "rgba(245,241,234,0.95)" : "#7a7369",
-                fontSize: 12,
-                fontWeight: genre === "" ? 600 : 400,
-                cursor: "pointer",
-                letterSpacing: "0.03em",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",
-              }}
-            >
-              すべて
-            </button>
-            {flatGenres.map((g) => (
+          {/* Genre Filter (Multi-select) */}
+          <div className="mb-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
-                key={g.value}
                 type="button"
-                onClick={() => setGenre(g.value)}
-                style={{
-                  flexShrink: 0,
-                  padding: "6px 14px",
-                  borderRadius: 20,
-                  border: `1px solid ${genre === g.value ? "#1a2744" : "rgba(24,21,15,0.12)"}`,
-                  background: genre === g.value ? "#1a2744" : "rgba(252,249,243,0.85)",
-                  color: genre === g.value ? "rgba(245,241,234,0.95)" : "#7a7369",
-                  fontSize: 12,
-                  fontWeight: genre === g.value ? 600 : 400,
-                  cursor: "pointer",
-                  letterSpacing: "0.03em",
-                  transition: "all 0.15s",
-                  whiteSpace: "nowrap",
-                }}
-                title={g.group}
+                onClick={() => setShowGenrePicker(!showGenrePicker)}
+                className="form-input w-auto inline-flex items-center gap-2 cursor-pointer hover:border-primary/30 transition-colors"
               >
-                {g.label}
+                <Tag className="w-4 h-4 text-muted" />
+                {selectedGenres.length === 0
+                  ? "すべてのジャンル"
+                  : `${selectedGenres.length}ジャンル選択中`}
               </button>
-            ))}
+              {selectedGenres.length > 0 && (
+                <>
+                  {selectedGenres.map((g) => (
+                    <span
+                      key={g}
+                      className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary-light px-2 py-1 rounded-full border border-primary/20"
+                    >
+                      {(GENRE_MAP[Number(g)] || "").replace(/〔.*〕/, "")}
+                      <button type="button" onClick={() => toggleGenre(g)} className="hover:text-red-400">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGenres([])}
+                    className="text-xs text-muted hover:text-foreground"
+                  >
+                    すべてクリア
+                  </button>
+                </>
+              )}
+            </div>
+
+            {showGenrePicker && (
+              <div className="glass rounded-2xl p-4 mt-3">
+                {GENRE_GROUPS.map((group) => (
+                  <div key={group.label} className="mb-3 last:mb-0">
+                    <h4 className="text-xs font-semibold text-muted mb-2">{group.label}</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {group.genres.map((g) => (
+                        <button
+                          key={g.value}
+                          type="button"
+                          onClick={() => toggleGenre(String(g.value))}
+                          className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${selectedGenres.includes(String(g.value))
+                            ? "bg-primary/15 text-primary-light border-primary/30"
+                            : "bg-white/5 text-muted border-border hover:text-foreground hover:border-primary/20"
+                            }`}
+                        >
+                          {selectedGenres.includes(String(g.value)) && "✓ "}
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Order chips + advanced toggle */}

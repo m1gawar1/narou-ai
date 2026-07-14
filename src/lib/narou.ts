@@ -35,7 +35,7 @@ export interface NarouNovel {
 export interface SearchParams {
   word?: string;
   notword?: string;
-  genre?: number;
+  genre?: number | string;
   biggenre?: number;
   order?: string;
   type?: "t" | "r" | "er" | "re" | "ter" | "";

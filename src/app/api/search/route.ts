@@ -15,8 +15,9 @@ export async function GET(req: NextRequest) {
     const notword = searchParams.get("notword");
     if (notword) params.notword = notword;
 
+    // genre はハイフン区切りの複数指定（例: "101-102"）に対応。形式が正しい場合のみ渡す
     const genre = searchParams.get("genre");
-    if (genre) params.genre = Number(genre);
+    if (genre && /^\d+(-\d+)*$/.test(genre)) params.genre = genre;
 
     const biggenre = searchParams.get("biggenre");
     if (biggenre) params.biggenre = Number(biggenre);
